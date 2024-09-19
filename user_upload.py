@@ -141,8 +141,7 @@ def streamlit_frame():
                                           "26. Oxygen-containing radical synthesis",
                                           "27. Magnetic electrocatalysis",
                                           "28. Seawater electrolysis"
-                                          ), disabled = st.session_state["modify_data"] or thermo_on or photo_on, label_visibility = "collapsed")
-
+                                          ), disabled=st.session_state["modify_data"] or thermo_on or photo_on, label_visibility="collapsed")
 
     if reaction_name == "27. Magnetic electrocatalysis":
         reaction_name_mag = st.sidebar.selectbox(" ", (
@@ -923,7 +922,7 @@ def subcategory_dict(main_category):
     return sub_dict[main_category]
 
 
-def write_excel(df, filename, sheet_name, append = True):
+def write_excel(df, filename, sheet_name, append=True):
     # Ensure the path to the file is correct if you're using relative paths
     cwd = os.getcwd()
     full_path = os.path.join(cwd, filename)
@@ -981,11 +980,7 @@ def get_doi(doi_input, reaction_name, thermo_flag, photo_flag):
     return doi_input
 
 
-def real_time_update(df):
-    return df
-
-
-def extract_and_modify_data(reaction_name, name, username, institute, thermo_flag, photo_flag, admin = [], admin_key="DOI", admin_value=""):
+def extract_and_modify_data(reaction_name, name, username, institute, thermo_flag, photo_flag, admin=None, admin_key="DOI", admin_value=""):
     total_excel = get_total_excel(thermo_flag, photo_flag)
     df_to_be_modified = total_excel[reaction_name]
     #st.write(df_to_be_modified)
@@ -1028,7 +1023,7 @@ def extract_and_modify_data(reaction_name, name, username, institute, thermo_fla
             st.session_state["modify_data"] = False
         return False
 
-
+# 以下为使用GoogleDrive 进行读取文件的函数
 # def get_total_excel(thermo_flag, photo_flag):
 #     if not thermo_flag and not photo_flag:
 #         total_pkl = os.path.join(".", "total_excel", "total.pkl")
@@ -1070,6 +1065,7 @@ def get_total_excel(thermo_flag, photo_flag):
         return df_total
 
 
+# 取消注释该函数中的语句
 def write_total_pickle_upload(df, thermo_flag, photo_flag):
     if not thermo_flag and not photo_flag:
         pickle_path = os.path.join(".", "total_excel", "total.pkl")
@@ -1154,7 +1150,6 @@ if __name__ == "__main__":
 
     st.markdown("---")
     cwd = os.getcwd()
-
 
     new_df = {}
     # col1, col2 = st.columns(2)
