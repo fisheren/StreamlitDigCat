@@ -11,6 +11,7 @@ from columns import column_title_dict, type_list, subtype_dict, reaction_options
 def collect_errors_and_styles(_df, expected_columns, reaction, doi_db):
     # 用来储存错误位置和信息
     errors = {}
+    _df = _df.dropna(how='all', axis=0)
     styles = pd.DataFrame('', index=_df.index, columns=_df.columns)
 
     # 部分单位的转换

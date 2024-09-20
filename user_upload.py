@@ -1571,7 +1571,7 @@ if __name__ == "__main__":
                                     # st.write("Check Updated DOI here:")
                                     # st.dataframe(df_doi, use_container_width=True)
                         else:
-                            st.markdown(f"<span style='color:red;'>After removing duplicate DOIs, reaction {sheetname} has no content.</span>", unsafe_allow_html=True)
+                            st.markdown(f"<span style='color:blue;'>After removing duplicate DOIs, reaction {sheetname} has no content.</span>", unsafe_allow_html=True)
 
                 else:
                     st.write("Please upload an Excel file to see the data.")
