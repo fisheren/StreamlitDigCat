@@ -6,8 +6,9 @@ import re
 # from quickstart_googledrive import upload_or_replace_file, download_folder_contents, st_upload_file_to_drive, file_from_gdrive, dir_dict
 # from quickstart_googledrive import init_drive_client
 # from quickstart_googledrive import dir_dict
-from ReadExcel_df import collect_errors_and_styles, database_dois
+from ReadExcel_df import collect_errors_and_styles
 from columns import column_title_dict
+from utils import get_total_excel
 
 from user import login
 from datetime import datetime
@@ -980,6 +981,12 @@ def get_doi(doi_input, reaction_name, thermo_flag, photo_flag):
     return doi_input
 
 
+def get_doi_db(_dic):
+    _doi_ls = []
+    for sheet_name in _dic.keys():
+        _doi_ls += (list(set(_dic[sheet_name]["DOI"])))
+    return _doi_ls
+
 def extract_and_modify_data(reaction_name, name, username, institute, thermo_flag, photo_flag, admin=None, admin_key="DOI", admin_value=""):
     total_excel = get_total_excel(thermo_flag, photo_flag)
     df_to_be_modified = total_excel[reaction_name]
@@ -1022,47 +1029,6 @@ def extract_and_modify_data(reaction_name, name, username, institute, thermo_fla
         if st.button("Return"):
             st.session_state["modify_data"] = False
         return False
-
-# 以下为使用GoogleDrive 进行读取文件的函数
-# def get_total_excel(thermo_flag, photo_flag):
-#     if not thermo_flag and not photo_flag:
-#         total_pkl = os.path.join(".", "total_excel", "total.pkl")
-#         if not os.path.exists(total_pkl):
-#             download_folder_contents(dir_dict["total_excel"], os.path.dirname(total_pkl))
-#         with open(total_pkl, 'rb') as file:
-#             df_total = pickle.load(file)
-#         return df_total
-#     elif photo_flag:
-#         total_pkl = os.path.join(".", "total_pickle_photocatalysis", "photo_excel.pkl")
-#         if not os.path.exists(total_pkl):
-#             download_folder_contents(dir_dict["total_pickle_photocatalysis"], os.path.dirname(total_pkl))
-#         with open(total_pkl, 'rb') as file:
-#             df_total = pickle.load(file)
-#         return df_total
-#     elif thermo_flag:
-#         total_pkl = os.path.join(".", "total_pickle_thermocatalysis", "thermo_excel.pkl")
-#         if not os.path.exists(total_pkl):
-#             download_folder_contents(dir_dict["total_pickle_thermocatalysis"], os.path.dirname(total_pkl))
-#         with open(total_pkl, 'rb') as file:
-#             df_total = pickle.load(file)
-#         return df_total
-
-def get_total_excel(thermo_flag, photo_flag):
-    if not thermo_flag and not photo_flag:
-        total_pkl = "./total_excel/total.pkl"
-        with open(total_pkl, 'rb') as file:
-            df_total = pickle.load(file)
-        return df_total
-    elif photo_flag:
-        total_pkl = "./total_pickle_photocatalysis/photo_excel.pkl"
-        with open(total_pkl, 'rb') as file:
-            df_total = pickle.load(file)
-        return df_total
-    elif thermo_flag:
-        total_pkl = "./total_pickle_thermocatalysis/thermo_excel.pkl"
-        with open(total_pkl, 'rb') as file:
-            df_total = pickle.load(file)
-        return df_total
 
 
 # 取消注释该函数中的语句
@@ -1147,6 +1113,7 @@ if __name__ == "__main__":
 
     reaction_name, mag_flag, thermo_flag, sea_flag, photo_flag = streamlit_frame()
     total_df = get_total_excel(thermo_flag, photo_flag)
+    doi_database = get_doi_db(total_df)
 
     st.markdown("---")
     cwd = os.getcwd()
@@ -1492,39 +1459,48 @@ if __name__ == "__main__":
                                 st.error('System busy, upload has failed, please try again after 10 seconds!')
             with st.container():
                 def upload_cur_df(df, reaction_name):
-                    print(df)
+                    print("---------------------")
                     df["Name"] = name
                     df["Institute"] = institute
                     df["Uploading data"] = pd.Timestamp(datetime.now())
-                    print(df)
-                    print(thermo_flag, photo_flag)
+                    # print(df)
                     try:
+                        print(123)
                         print(total_df[sheet_dict[reaction_name]], total_df[sheet_dict[reaction_name]].shape)
                         print(reaction_name)
+                        print(234)
                         total_df[sheet_dict[reaction_name]] = pd.concat([total_df[sheet_dict[reaction_name]], df],
                                                                         ignore_index=True)
                         write_total_pickle_upload(total_df, thermo_flag, photo_flag)
-                    except KeyError as e:
+                        return True
+                    except Exception as e:
+                        print(1)
                         print(e)
-                        st.error("ERROR! Reaction name mismatched")
-                col1, col2 = st.columns([4, 1])
+                        print("???")
+                        return False
+                col1, col2 = st.columns([2, 1])
                 with col1:
                     st.markdown("### Upload by Excel")
-                    uploaded_excel = st.file_uploader(label="", type=['xlsx'])
+                    uploaded_excel = st.file_uploader(label="Please upload the file according to the template", type=['xlsx'])
                 with col2:
                     st.markdown("### Download template here")
+                    st.caption("please choose the reaction type first")
                     # 此处的文件路径可能需要和GoogleDrive链接
                     if photo_flag:
                         with open("./photo_template.xlsx", "rb") as f:
                             excel_data = f.read()
+                            template_filename = "photo_template.xlsx"
                     elif thermo_flag:
                         with open("./thermo_template.xlsx", "rb") as f:
                             excel_data = f.read()
+                            template_filename = "thermo_template.xlsx"
                     else:
                         with open("./elec_template.xlsx", "rb") as f:
                             excel_data = f.read()
+                            template_filename = "elec_template.xlsx"
                     st.download_button("Click to download",
                                        data=excel_data,
+                                       file_name=template_filename,
                                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
                 # Upload Excel file
                 if uploaded_excel:
@@ -1540,12 +1516,12 @@ if __name__ == "__main__":
                         expected_columns = column_title_dict.get(sheetname, {}).keys()
                         cur_df = pd.read_excel(uploaded_excel, sheet_name=sheetname, dtype=str)
                         # 调用函数，返回错误列表
-                        errors, styles, doi_ls, df_to_upload = collect_errors_and_styles(cur_df, expected_columns, sheetname)
+                        errors, styles, doi_ls, df_to_upload = collect_errors_and_styles(cur_df, expected_columns, sheetname, doi_database)
                         with st.container(border=True):
                             col1, col2 = st.columns(2)
                             with col1:
                                 # 展示df并附带高亮
-                                st.markdown(f"#### Original Data for {sheetname}: ")
+                                st.markdown(f"#### {sheetname}: ")
                                 st.dataframe(df_to_upload.style.apply(lambda _: styles, axis=None))
                                 # Display errors if any
                                 if errors:
@@ -1555,7 +1531,11 @@ if __name__ == "__main__":
                                             for txt in errors[e_type]:
                                                 st.write(f"- {txt}")
                                 else:
-                                    st.button(label="submit", key=f"inner_submit_{sheetname}", on_click=upload_cur_df, args=(df_to_upload, sheetname))
+                                    if st.button(label="submit", key=f"inner_submit_{sheetname}"):
+                                        if upload_cur_df(df_to_upload, sheetname):
+                                            st.success("Success")
+                                        else:
+                                            st.error("Reaction type mismatched ")
 
                             with col2:
                                 # 标题

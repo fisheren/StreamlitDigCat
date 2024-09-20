@@ -1,24 +1,15 @@
 import pandas as pd
 import numpy as np
 import re
-import streamlit as st
+import pickle
 from datetime import datetime
 
 from columns import column_title_dict, type_list, subtype_dict
 from reactant import reaction_options
 
 
-database_dois = [
-    '10.1038/s41929-022-00840-0',
-    '10.1021/acscatal.9b01225',
-
-]
-
-def get_doi_db(thermo, photo):
-
-
 # 收集错误和设计高亮
-def collect_errors_and_styles(_df, expected_columns, reaction):
+def collect_errors_and_styles(_df, expected_columns, reaction, doi_db):
     # 用来储存错误位置和信息
     errors = {}
     styles = pd.DataFrame('', index=_df.index, columns=_df.columns)
@@ -61,7 +52,7 @@ def collect_errors_and_styles(_df, expected_columns, reaction):
                 matches = doi_pattern.findall(value)
                 if matches:
                     matched_doi = matches[0]
-                    if matched_doi not in database_dois:
+                    if matched_doi not in doi_db:
                         # 检查是否完全正确的DOI
                         if value != matched_doi:
                             _df.at[i, "DOI"] = matched_doi
@@ -311,7 +302,7 @@ def collect_errors_and_styles(_df, expected_columns, reaction):
     if len(product_errors) > 0:
         errors["Product"] = product_errors
 
-    # Year 列的正则表达式模式：四位整数
+    # Year列 的正则表达式模式：四位整数
     year_errors = []
     year_pattern = re.compile(r'^\d{4}$')
     # 获取当前年份
