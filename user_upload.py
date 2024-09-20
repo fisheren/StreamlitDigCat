@@ -1487,15 +1487,15 @@ if __name__ == "__main__":
                     st.caption("please choose the reaction type first")
                     # 此处的文件路径可能需要和GoogleDrive链接
                     if photo_flag:
-                        with open("./photo_template.xlsx", "rb") as f:
+                        with open("./ExcelTemplates/photo_template.xlsx", "rb") as f:
                             excel_data = f.read()
                             template_filename = "photo_template.xlsx"
                     elif thermo_flag:
-                        with open("./thermo_template.xlsx", "rb") as f:
+                        with open("./ExcelTemplates/thermo_template.xlsx", "rb") as f:
                             excel_data = f.read()
                             template_filename = "thermo_template.xlsx"
                     else:
-                        with open("./elec_template.xlsx", "rb") as f:
+                        with open("./ExcelTemplates/elec_template.xlsx", "rb") as f:
                             excel_data = f.read()
                             template_filename = "elec_template.xlsx"
                     st.download_button("Click to download",
