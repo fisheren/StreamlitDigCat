@@ -4,8 +4,7 @@ import re
 import pickle
 from datetime import datetime
 
-from columns import column_title_dict, type_list, subtype_dict
-from reactant import reaction_options
+from columns import column_title_dict, type_list, subtype_dict, reaction_options
 
 
 # 收集错误和设计高亮

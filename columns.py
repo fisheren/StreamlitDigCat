@@ -657,3 +657,60 @@ type_list = [
     "Perovskite",
     "Others"
 ]
+
+# Define the dictionary with reaction names as keys
+reaction_options = {
+    "Carbon Dioxide Reduction": {
+        "Main product": [
+            'Acetate', 'Carbon monoxide(CO)', "Methanal(CH2O)", 'Formate', 'Ethylene(C2H4)',
+            'Ethanol(CH3CH2OH)', 'Ethanal', 'Methanol', "Methane(CH4)", "Hydrogen(H2)",
+            "Ethane (C2H6)", "C3 products"
+        ],
+        "Other product (FE > 10%)": [
+            'Acetate', 'Carbon monoxide(CO)', "Methanal(CH2O)", 'Formate', 'Ethylene(C2H4)',
+            'Ethanol(CH3CH2OH)', 'Ethanal', 'Methanol', "Methane(CH4)", "Hydrogen(H2)",
+            "Ethane (C2H6)", "C3 products", "NA"
+        ]
+    },
+    "CORR": {
+        "Main product": [
+            'Acetate', 'Carbon monoxide(CO)', "Methanal(CH2O)", 'Formate', 'Ethylene(C2H4)',
+            'Ethanol(CH3CH2OH)', 'Ethanal', 'Methanol', "Methane(CH4)", "Hydrogen(H2)",
+            "Ethane (C2H6)", "C3 products"
+        ],
+        "Other product (FE > 10%)": [
+            'Acetate', 'Carbon monoxide(CO)', "Methanal(CH2O)", 'Formate', 'Ethylene(C2H4)',
+            'Ethanol(CH3CH2OH)', 'Ethanal', 'Methanol', "Methane(CH4)", "Hydrogen(H2)",
+            "Ethane (C2H6)", "C3 products", "NA"
+        ]
+    },
+    "Ammonia Synthesis": {
+        "Isotope labeling": [
+            "yes", "no"
+        ],
+        "Reactant": [
+            'N2', 'NO/NO2/NO3', "NO3-/NO2-/NO-"
+        ]
+    },
+    "Epoxide Production": {
+        "Main product": [
+            'cyclooctene oxide', 'propylene oxide', "ethylene oxide", 'acrolein', 'acrylic acid',
+            'allyl alcohol', 'propyiene glycol', 'acetone'
+        ]
+    },
+    "Nitrogen Oxidation Reaction": {
+        "Main product": [
+            'NO3-', 'NO2-', 'NO-'
+        ]
+    },
+    "NH3 Oxidation Reaction": {
+        "Main product": [
+            'N2', 'N2O'
+        ]
+    },
+    "Urea Oxidation Reaction": {
+        "Main product": [
+            'N2', 'NO-', 'NO2-', 'NO3-', 'CO2', 'CO'
+        ]
+    }
+}
