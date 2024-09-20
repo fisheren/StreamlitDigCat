@@ -1509,65 +1509,69 @@ if __name__ == "__main__":
                     # 判断反应名是否存在
                     for sheetname in sheetnames:
                         # 此处为判断excel的sheetname是否能匹配上reaction name
-                        # if sheetname not in column_title_dict:
-                        #     st.write(f"Reaction information for '{sheetname}' does not exist.")
-                        #     continue
+                        if sheetname not in column_title_dict:
+                            st.markdown(f"<span style='color:red;'>Reaction name '{sheetname}' does not exist.</span>", unsafe_allow_html=True)
+                            continue
                         # 反应名对应的列名
-                        expected_columns = column_title_dict.get(sheetname, {}).keys()
                         cur_df = pd.read_excel(uploaded_excel, sheet_name=sheetname, dtype=str)
                         # 调用函数，返回错误列表
+                        expected_columns = column_title_dict.get(sheetname, {}).keys()
                         errors, styles, doi_ls, df_to_upload = collect_errors_and_styles(cur_df, expected_columns, sheetname, doi_database)
-                        with st.container(border=True):
-                            col1, col2 = st.columns(2)
-                            with col1:
-                                # 展示df并附带高亮
-                                st.markdown(f"#### {sheetname}: ")
-                                st.dataframe(df_to_upload.style.apply(lambda _: styles, axis=None))
-                                # Display errors if any
-                                if errors:
-                                    st.markdown("#### Errors found:")
-                                    for e_type in errors.keys():
-                                        with st.expander(f"{e_type} errors", expanded=False):
-                                            for txt in errors[e_type]:
-                                                st.write(f"- {txt}")
-                                else:
-                                    if st.button(label="submit", key=f"inner_submit_{sheetname}"):
-                                        if upload_cur_df(df_to_upload, sheetname):
-                                            st.success("Success")
-                                        else:
-                                            st.error("Reaction type mismatched ")
-
-                            with col2:
-                                # 标题
-                                st.markdown(f"#### Upload your DOI here")
-                                # 使用 st.session_state 缓存 df_doi
-                                if f"df_doi_{sheetname}" not in st.session_state:
-                                    # 初始化时将 IsUploaded 设置为 False
-                                    st.session_state[f"df_doi_{sheetname}"] = pd.DataFrame({
-                                        "DOIs": doi_ls,
-                                        "IsUploaded": False,  # 初始状态为未上传
-                                    })
-                                # 获取缓存的 df_doi
-                                df_doi = st.session_state[f"df_doi_{sheetname}"]
-                                # 创建表单
-                                with st.form(key=f"upload_form_{sheetname}"):
-                                    selected_doi = st.selectbox("Select a DOI to Upload", doi_ls)
-                                    uploaded_doi = st.file_uploader("Upload your PDF file", type=['pdf'])
-                                    submitted = st.form_submit_button("Submit")
-                                # 如果表单提交了并且上传了文件
-                                if submitted:
-                                    if uploaded_doi is not None and selected_doi is not None:
-                                        # 使用 selectbox 中选择的 DOI 名称作为文件名
-                                        new_file_name = f"{selected_doi}.pdf"
-                                        st.success(f"File uploaded will be renamed to '{new_file_name}' and matches DOI '{selected_doi}' in the list!")
-                                        df_doi.loc[df_doi["DOIs"] == selected_doi, "IsUploaded"] = True
-                                        # 在这里进行上传逻辑，例如上传到 Google Drive 或其他存储
-                                        # upload_or_replace_file(new_file_name, filepath, mimetype, dir_dict[pdfs], drive_client)
-                                        st.success("File renamed and uploaded successfully!")
+                        if not df_to_upload.empty:
+                            with st.container(border=True):
+                                col1, col2 = st.columns(2)
+                                with col1:
+                                    # 展示df并附带高亮
+                                    st.markdown(f"#### {sheetname}: ")
+                                    st.dataframe(df_to_upload.style.apply(lambda _: styles, axis=None))
+                                    # Display errors if any
+                                    if errors:
+                                        st.markdown("#### Errors found:")
+                                        for e_type in errors.keys():
+                                            with st.expander(f"{e_type} errors", expanded=False):
+                                                for txt in errors[e_type]:
+                                                    st.write(f"- {txt}")
                                     else:
-                                        st.error("No file was uploaded. Please upload a PDF file.")
-                                st.write("Check Updated DOI here:")
-                                st.dataframe(df_doi, use_container_width=True)
+                                        if st.button(label="submit", key=f"inner_submit_{sheetname}"):
+                                            if upload_cur_df(df_to_upload, sheetname):
+                                                st.success("Success")
+                                            else:
+                                                st.error("Reaction type mismatched ")
+
+                                with col2:
+                                    # 标题
+                                    st.markdown(f"#### Upload your DOI here")
+                                    # 使用 st.session_state 缓存 df_doi（此处为doi检查表功能，尚不完善）
+                                    # if f"df_doi_{sheetname}" not in st.session_state:
+                                    #     # 初始化时将 IsUploaded 设置为 False
+                                    #     st.session_state[f"df_doi_{sheetname}"] = pd.DataFrame({
+                                    #         "DOIs": doi_ls,
+                                    #         "IsUploaded": False,  # 初始状态为未上传
+                                    #     })
+                                    # 获取缓存的 df_doi（此处为doi检查表功能，尚不完善）
+                                    # df_doi = st.session_state[f"df_doi_{sheetname}"]
+                                    # 创建表单
+                                    with st.form(key=f"upload_form_{sheetname}"):
+                                        selected_doi = st.selectbox("Select a DOI to Upload", doi_ls)
+                                        uploaded_doi = st.file_uploader("Upload your PDF file", type=['pdf'])
+                                        submitted = st.form_submit_button("Submit")
+                                    # 如果表单提交了并且上传了文件
+                                    if submitted:
+                                        if uploaded_doi is not None and selected_doi is not None:
+                                            # 使用 selectbox 中选择的 DOI 名称作为文件名
+                                            new_file_name = f"{selected_doi}.pdf"
+                                            st.success(f"File uploaded will be renamed to '{new_file_name}' and matches DOI '{selected_doi}' in the list!")
+                                            # df_doi.loc[df_doi["DOIs"] == selected_doi, "IsUploaded"] = True
+                                            # 在这里进行上传逻辑，例如上传到 Google Drive 或其他存储
+                                            # upload_or_replace_file(new_file_name, filepath, mimetype, dir_dict[pdfs], drive_client)
+                                            st.success("File renamed and uploaded successfully!")
+                                        else:
+                                            st.error("No file was uploaded. Please upload a PDF file.")
+                                    # 此处为doi检查表格功能，尚不完善
+                                    # st.write("Check Updated DOI here:")
+                                    # st.dataframe(df_doi, use_container_width=True)
+                        else:
+                            st.markdown(f"<span style='color:red;'>After removing duplicate DOIs, reaction {sheetname} has no content.</span>", unsafe_allow_html=True)
 
                 else:
                     st.write("Please upload an Excel file to see the data.")
