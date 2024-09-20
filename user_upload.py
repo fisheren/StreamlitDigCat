@@ -955,7 +955,7 @@ def write_excel(df, filename, sheet_name, append=True):
     return True
 
 
-def doi_contributed_by_user(doi, reaction_name, drive_client, excel_dir = "User_contribution"):
+def doi_contributed_by_user(doi, reaction_name, drive_client, excel_dir="User_contribution"):
     cwd = os.getcwd()
     excel_list = os.listdir(os.path.join(cwd, excel_dir))
     if len(excel_list) > 0:

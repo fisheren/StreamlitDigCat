@@ -14,6 +14,8 @@ database_dois = [
 
 ]
 
+def get_doi_db(thermo, photo):
+
 
 # 收集错误和设计高亮
 def collect_errors_and_styles(_df, expected_columns, reaction):
