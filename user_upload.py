@@ -105,8 +105,9 @@ def streamlit_frame():
     st.sidebar.markdown('<h1 style="font-size: 2em;">Contribution to Digcat</h1>', unsafe_allow_html=True)
     st.sidebar.markdown("# 	:roller_coaster:Entry:")
     st.image("title.svg", use_column_width=True)
-    thermo_on = st.sidebar.toggle("Switching to Thermocatalysis", )
-    photo_on = st.sidebar.toggle("Switching to Photocatalysis", disabled = thermo_on)
+
+    thermo_on = st.sidebar.toggle("Switching to Thermocatalysis",)
+    photo_on = st.sidebar.toggle("Switching to Photocatalysis", disabled=thermo_on)
 
     st.sidebar.header("Please choose the reaction type:")
 
@@ -226,8 +227,6 @@ def streamlit_frame():
         st.sidebar.write("You selected photocatalysis.")
     else:
         st.sidebar.write("You selected electrocatalysis.")
-
-
 
     return st.session_state["reaction_name"], mag_flag, thermo_on, sea_flag, photo_on
 
@@ -970,13 +969,13 @@ def doi_contributed_by_user(doi, reaction_name, drive_client, excel_dir="User_co
         return False
 
 
-def get_doi(doi_input, reaction_name, thermo_flag, photo_flag):
-    df = get_total_excel(thermo_flag, photo_flag)
-    for reaction in df.keys():
+def get_doi(doi_input, reaction_name, _dic):
+    for reaction in _dic.keys():
         if reaction == sheet_dict[reaction_name]:
-            mask_is_null = df[reaction]["modify time"].isnull()
-            df = df[reaction][mask_is_null]
-            if doi_input in df["DOI"].values:
+            mask_is_null = _dic[reaction]["modify time"].isnull()
+            _dic = _dic[reaction][mask_is_null]
+            _dic["DOI"] = _dic["DOI"].str.strip()
+            if doi_input in _dic["DOI"].values:
                 return None
     return doi_input
 
@@ -986,6 +985,7 @@ def get_doi_db(_dic):
     for sheet_name in _dic.keys():
         _doi_ls += (list(set(_dic[sheet_name]["DOI"])))
     return _doi_ls
+
 
 def extract_and_modify_data(reaction_name, name, username, institute, thermo_flag, photo_flag, admin=None, admin_key="DOI", admin_value=""):
     total_excel = get_total_excel(thermo_flag, photo_flag)
@@ -1106,14 +1106,23 @@ def count_uploading_data_within_time_range(t_df, start_time, end_time):
     return count
 
 
-if __name__ == "__main__":
+def get_expected_reactions(thermo, photo):
+    if thermo:
+        return column_title_dict["thermo"]
+    elif photo:
+        return column_title_dict["photo"]
+    else:
+        return column_title_dict["electro"]
 
+
+if __name__ == "__main__":
     if not "modify_data" in st.session_state:
         st.session_state["modify_data"] = False
 
     reaction_name, mag_flag, thermo_flag, sea_flag, photo_flag = streamlit_frame()
-    total_df = get_total_excel(thermo_flag, photo_flag)
-    doi_database = get_doi_db(total_df)
+    total_dic = get_total_excel(thermo_flag, photo_flag)
+    doi_database = get_doi_db(total_dic)
+    expected_reactions = get_expected_reactions(thermo_flag, photo_flag)
 
     st.markdown("---")
     cwd = os.getcwd()
@@ -1228,7 +1237,7 @@ if __name__ == "__main__":
                         st.session_state["checked_reaction"] = None
 
                     if st.session_state.doi_clicked:
-                        st.session_state.doi = get_doi(doi_input, reaction_name, thermo_flag, photo_flag)
+                        st.session_state.doi = get_doi(doi_input, reaction_name, total_dic)
                         st.session_state["checked_reaction"] = reaction_name
                         st.session_state.doi_clicked = False
 
@@ -1465,18 +1474,16 @@ if __name__ == "__main__":
                     df["Uploading data"] = pd.Timestamp(datetime.now())
                     # print(df)
                     try:
-                        print(123)
-                        print(total_df[sheet_dict[reaction_name]], total_df[sheet_dict[reaction_name]].shape)
-                        print(reaction_name)
-                        print(234)
-                        total_df[sheet_dict[reaction_name]] = pd.concat([total_df[sheet_dict[reaction_name]], df],
+                        # print(reaction_name)
+                        # print(sheet_dict[reaction_name])
+                        # print(total_df['OER'].shape)
+                        df["DOI"] = df["DOI"].str.strip()
+                        total_dic[sheet_dict[reaction_name]] = pd.concat([total_dic[sheet_dict[reaction_name]], df],
                                                                         ignore_index=True)
-                        write_total_pickle_upload(total_df, thermo_flag, photo_flag)
+                        write_total_pickle_upload(total_dic, thermo_flag, photo_flag)
                         return True
                     except Exception as e:
-                        print(1)
                         print(e)
-                        print("???")
                         return False
                 col1, col2 = st.columns([2, 1])
                 with col1:
@@ -1509,13 +1516,13 @@ if __name__ == "__main__":
                     # 判断反应名是否存在
                     for sheetname in sheetnames:
                         # 此处为判断excel的sheetname是否能匹配上reaction name
-                        if sheetname not in column_title_dict:
-                            st.markdown(f"<span style='color:red;'>Reaction name '{sheetname}' does not exist.</span>", unsafe_allow_html=True)
+                        if sheetname not in expected_reactions:
+                            st.markdown(f"<span style='color:red;'>Reaction name '{sheetname}' mismatch the catalysis type.</span>", unsafe_allow_html=True)
                             continue
                         # 反应名对应的列名
                         cur_df = pd.read_excel(uploaded_excel, sheet_name=sheetname, dtype=str)
                         # 调用函数，返回错误列表
-                        expected_columns = column_title_dict.get(sheetname, {}).keys()
+                        expected_columns = expected_reactions.get(sheetname, {}).keys()
                         errors, styles, doi_ls, df_to_upload = collect_errors_and_styles(cur_df, expected_columns, sheetname, doi_database)
                         if not df_to_upload.empty:
                             with st.container(border=True):
