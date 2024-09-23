@@ -120,9 +120,10 @@ def collect_errors_and_styles(_df, expected_columns, reaction, doi_db):
     chinese_errors = []
     for col in _df.columns:
         for i, value in enumerate(_df[col]):
-            if pd.notna(value) and re.search(r'[\u4e00-\u9fff]', str(value)):
-                styles.at[i, col] = 'background-color: orange; color: black;'
-                chinese_errors.append(f"Contains Chinese characters in row {i}, '{col}' column.")
+            if i not in index_to_drop:
+                if pd.notna(value) and re.search(r'[\u4e00-\u9fff]', str(value)):
+                    styles.at[i, col] = 'background-color: orange; color: black;'
+                    chinese_errors.append(f"Contains Chinese characters in row {i}, '{col}' column.")
     if len(chinese_errors) > 0:
         errors["Chinese"] = chinese_errors
 
@@ -130,9 +131,10 @@ def collect_errors_and_styles(_df, expected_columns, reaction, doi_db):
     type_errors = []
     if "Type" in _df.columns:
         for i, value in _df['Type'].items():
-            if pd.notna(value) and value not in type_list:
-                styles.at[i, 'Type'] = 'background-color: red; color: white;'
-                type_errors.append(f"Type '{value}' not found in row {i}, 'Type' column.")
+            if i not in index_to_drop:
+                if pd.notna(value) and value not in type_list:
+                    styles.at[i, 'Type'] = 'background-color: red; color: white;'
+                    type_errors.append(f"Type '{value}' not found in row {i}, 'Type' column.")
     if len(type_errors) > 0:
         errors["Type"] = type_errors
 
@@ -140,10 +142,11 @@ def collect_errors_and_styles(_df, expected_columns, reaction, doi_db):
     subtype_errors = []
     if "Type" in _df.columns and "subType" in _df.columns:
         for i, (type_val, subtype_val) in _df[['Type', 'subType']].iterrows():
-            if pd.notna(type_val) and pd.notna(subtype_val) and type_val in type_list:
-                if subtype_val not in subtype_dict.get(type_val, []):
-                    styles.at[i, 'subType'] = 'background-color: blue; color: white;'
-                    subtype_errors.append(f"SubType '{subtype_val}' mismatch in row {i}, 'subType' column.")
+            if i not in index_to_drop:
+                if pd.notna(type_val) and pd.notna(subtype_val) and type_val in type_list:
+                    if subtype_val not in subtype_dict.get(type_val, []):
+                        styles.at[i, 'subType'] = 'background-color: blue; color: white;'
+                        subtype_errors.append(f"SubType '{subtype_val}' mismatch in row {i}, 'subType' column.")
     if len(subtype_errors) > 0:
         errors["SubType"] = subtype_errors
 
@@ -155,67 +158,67 @@ def collect_errors_and_styles(_df, expected_columns, reaction, doi_db):
         unit_pattern = re.compile(r'^(wt\.?|at\.?)%(;\s*(wt\.?|at\.?)%)?$')
 
         for i, value in enumerate(_df["Content"]):
-            if pd.notna(value):
-                value = str(value).strip()
+            if i not in index_to_drop:
+                if pd.notna(value):
+                    value = str(value).strip()
+                    # Find the index of the first '=' or ':'
+                    separator_match = re.search(r'[=:]', value)
+                    if separator_match:
+                        sep_index = separator_match.start()
+                        first_part = value[:sep_index].strip()
+                        remaining_part = value[sep_index + 1:].strip()
 
-                # Find the index of the first '=' or ':'
-                separator_match = re.search(r'[=:]', value)
-                if separator_match:
-                    sep_index = separator_match.start()
-                    first_part = value[:sep_index].strip()
-                    remaining_part = value[sep_index + 1:].strip()
+                        # 寻找单位索引
+                        letter_index = re.search(r'[a-zA-Z]', remaining_part)
+                        if letter_index:
+                            letter_index = letter_index.start()
+                            third_part = remaining_part[:letter_index].strip()
+                            fourth_part = remaining_part[letter_index:].strip()
 
-                    # 寻找单位索引
-                    letter_index = re.search(r'[a-zA-Z]', remaining_part)
-                    if letter_index:
-                        letter_index = letter_index.start()
-                        third_part = remaining_part[:letter_index].strip()
-                        fourth_part = remaining_part[letter_index:].strip()
+                            # 第一部分
+                            chemicals = first_part.split('/')
+                            for chem in chemicals:
+                                if not chemical_pattern.fullmatch(chem):
+                                    styles.at[
+                                        i, "Content"] = 'background-color: green; color: white;'
+                                    content_errors.append(f"In row {i}, chemical formula error in the 'Content' column")
+                                    break
+                                elif not re.match(r'^([A-Z][a-z]?\d*)+$', chem):
+                                    styles.at[
+                                        i, "Content"] = 'background-color: green; color: white;'
+                                    content_errors.append(f"In row {i}, invalid separator in the chemical formula in the 'Content' column")
+                                    break
 
-                        # 第一部分
-                        chemicals = first_part.split('/')
-                        for chem in chemicals:
-                            if not chemical_pattern.fullmatch(chem):
-                                styles.at[
-                                    i, "Content"] = 'background-color: green; color: white;'
-                                content_errors.append(f"In row {i}, chemical formula error in the 'Content' column")
-                                break
-                            elif not re.match(r'^([A-Z][a-z]?\d*)+$', chem):
-                                styles.at[
-                                    i, "Content"] = 'background-color: green; color: white;'
-                                content_errors.append(f"In row {i}, invalid separator in the chemical formula in the 'Content' column")
-                                break
+                            # 第三部分(numbers)
+                            numbers = third_part.split('/')
+                            for num in numbers:
+                                if not number_pattern.fullmatch(num):
+                                    styles.at[
+                                        i, "Content"] = 'background-color: green; color: white;'
+                                    content_errors.append(f"In row {i}, number format error in the 'Content' column")
+                                    break
+                                elif not re.match(r'^\d+(\.\d+)?%?$', num):
+                                    styles.at[
+                                        i, "Content"] = 'background-color: green; color: white;'
+                                    content_errors.append(f"In row {i}, invalid separator in numbers in the 'Content' column")
+                                    break
 
-                        # 第三部分(numbers)
-                        numbers = third_part.split('/')
-                        for num in numbers:
-                            if not number_pattern.fullmatch(num):
-                                styles.at[
-                                    i, "Content"] = 'background-color: green; color: white;'
-                                content_errors.append(f"In row {i}, number format error in the 'Content' column")
-                                break
-                            elif not re.match(r'^\d+(\.\d+)?%?$', num):
-                                styles.at[
-                                    i, "Content"] = 'background-color: green; color: white;'
-                                content_errors.append(f"In row {i}, invalid separator in numbers in the 'Content' column")
-                                break
+                            if not len(chemicals) == len(numbers):
+                                styles.at[i, "Content"] = 'background-color: green; color: white;'
+                                content_errors.append(f"In row {i}, count mismatch error in the 'Content' column")
 
-                        if not len(chemicals) == len(numbers):
+                            # Validate the fourth part (units)
+                            if not unit_pattern.fullmatch(fourth_part):
+                                styles.at[i, "Content"] = 'background-color: green; color: white;'
+                                content_errors.append(f"In row {i}, unit format error in the 'Content' column")
+
+                        else:
                             styles.at[i, "Content"] = 'background-color: green; color: white;'
-                            content_errors.append(f"In row {i}, count mismatch error in the 'Content' column")
-
-                        # Validate the fourth part (units)
-                        if not unit_pattern.fullmatch(fourth_part):
-                            styles.at[i, "Content"] = 'background-color: green; color: white;'
-                            content_errors.append(f"In row {i}, unit format error in the 'Content' column")
+                            content_errors.append(f"In row {i}, missing letter in the remaining part of the 'Content' column")
 
                     else:
                         styles.at[i, "Content"] = 'background-color: green; color: white;'
-                        content_errors.append(f"In row {i}, missing letter in the remaining part of the 'Content' column")
-
-                else:
-                    styles.at[i, "Content"] = 'background-color: green; color: white;'
-                    content_errors.append(f"In row {i}, missing separator in the 'Content' column")
+                        content_errors.append(f"In row {i}, missing separator in the 'Content' column")
 
         if len(content_errors) > 0:
             errors["Content"] = content_errors
@@ -226,13 +229,14 @@ def collect_errors_and_styles(_df, expected_columns, reaction, doi_db):
         conditional_columns = [col for col in _df.columns if '@' in col]
         for col in conditional_columns:
             for i, value in enumerate(_df[col]):
-                if pd.notna(value):
-                    value = str(value).strip()  # 去掉前后空格
-                    match = condition_pattern.match(value)
-                    if not match:
-                        # 标记错误的单元格位置
-                        condition_errors.append(f"In row {i}, the value '{value}' in the '{col}' column does not match the required format")
-                        styles.at[i, col] = 'background-color: blue; color: white;'
+                if i not in index_to_drop:
+                    if pd.notna(value):
+                        value = str(value).strip()  # 去掉前后空格
+                        match = condition_pattern.match(value)
+                        if not match:
+                            # 标记错误的单元格位置
+                            condition_errors.append(f"In row {i}, the value '{value}' in the '{col}' column does not match the required format")
+                            styles.at[i, col] = 'background-color: blue; color: white;'
 
         if len(condition_errors) > 0:
             errors["Condition"] = condition_errors
@@ -252,37 +256,38 @@ def collect_errors_and_styles(_df, expected_columns, reaction, doi_db):
             number_pattern = re.compile(r'^[<>≤≥]?\d+(\.\d+)?(±\d+(\.\d+)?)?$')
 
             for i, value in enumerate(_df[col]):
-                if pd.notna(value):
-                    value = str(value).strip()  # 去除两端空格
+                if i not in index_to_drop:
+                    if pd.notna(value):
+                        value = str(value).strip()  # 去除两端空格
 
-                    # 1. 检查是否为纯数字
-                    if number_pattern.match(value):
-                        # 是纯数字，直接通过
-                        continue
+                        # 1. 检查是否为纯数字
+                        if number_pattern.match(value):
+                            # 是纯数字，直接通过
+                            continue
 
-                    # 2. 检查数字和单位的情况
-                    number_match = re.match(r'^(\d+(\.\d+)?)(.*)$', value)
-                    if number_match:
-                        number_part = number_match.group(1)
-                        unit_value = number_match.group(3).strip()  # 获取数字后的内容
+                        # 2. 检查数字和单位的情况
+                        number_match = re.match(r'^(\d+(\.\d+)?)(.*)$', value)
+                        if number_match:
+                            number_part = number_match.group(1)
+                            unit_value = number_match.group(3).strip()  # 获取数字后的内容
 
-                        # 检查是否包含括号
-                        unit_value_match = re.search(r'\((.*?)\)', unit_value)
-                        if unit_value_match:
-                            unit_value = unit_value_match.group(1).strip()  # 提取括号内的内容
+                            # 检查是否包含括号
+                            unit_value_match = re.search(r'\((.*?)\)', unit_value)
+                            if unit_value_match:
+                                unit_value = unit_value_match.group(1).strip()  # 提取括号内的内容
+                            else:
+                                unit_value = unit_value.strip()  # 如果没有括号，直接使用原值
+
+                            # 3. 比较 unit_value 和 unit_col，考虑等价替换
+                            if unit_value != unit_col and unit_value not in equivalent_units.get(unit_col, []):
+                                # 不匹配，标记错误
+                                styles.at[
+                                    i, col] = 'background-color: purple; color: white;'  # Purple for unit format errors
+                                unit_errors.append(f"In row {i}, the unit in the '{col}' column is invalid or mismatched")
                         else:
-                            unit_value = unit_value.strip()  # 如果没有括号，直接使用原值
-
-                        # 3. 比较 unit_value 和 unit_col，考虑等价替换
-                        if unit_value != unit_col and unit_value not in equivalent_units.get(unit_col, []):
-                            # 不匹配，标记错误
-                            styles.at[
-                                i, col] = 'background-color: purple; color: white;'  # Purple for unit format errors
-                            unit_errors.append(f"In row {i}, the unit in the '{col}' column is invalid or mismatched")
-                    else:
-                        # 格式不匹配
-                        styles.at[i, col] = 'background-color: purple; color: white;'  # Purple for unit format errors
-                        unit_errors.append(f"In row {i}, the value format in the '{col}' column is invalid")
+                            # 格式不匹配
+                            styles.at[i, col] = 'background-color: purple; color: white;'  # Purple for unit format errors
+                            unit_errors.append(f"In row {i}, the value format in the '{col}' column is invalid")
 
     if len(unit_errors) > 0:
         errors["Unit"] = unit_errors
@@ -294,12 +299,13 @@ def collect_errors_and_styles(_df, expected_columns, reaction, doi_db):
             key = key.strip()
             if key in _df.columns:
                 for i, value in enumerate(_df[key]):
-                    if pd.notna(value):
-                        value = str(value).strip()
-                        if value not in reaction_options[reaction][key]:
-                            product_errors.append(
-                                f"In row {i}, the value '{value}' in the '{key}' column for reaction '{reaction}' is invalid")
-                            styles.at[i, key] = 'background-color: yellow; color: black;'
+                    if i not in index_to_drop:
+                        if pd.notna(value):
+                            value = str(value).strip()
+                            if value not in reaction_options[reaction][key]:
+                                product_errors.append(
+                                    f"In row {i}, the value '{value}' in the '{key}' column for reaction '{reaction}' is invalid")
+                                styles.at[i, key] = 'background-color: yellow; color: black;'
     if len(product_errors) > 0:
         errors["Product"] = product_errors
 
@@ -311,19 +317,20 @@ def collect_errors_and_styles(_df, expected_columns, reaction, doi_db):
         current_year = datetime.now().year
         # 检查 Year 列的值
         for i, value in enumerate(_df['Year']):
-            if pd.notna(value):
-                value = str(value).strip()  # 去掉前后空格
-                if year_pattern.match(value):
-                    year = int(value)
-                    # 检查年份是否在1900到当前年份之间
-                    if not (1900 <= year <= current_year):
-                        year_errors.append(
-                            f"In row {i}, the value '{value}' in the 'Year' column is out of the valid range (1900-{current_year})")
+            if i not in index_to_drop:
+                if pd.notna(value):
+                    value = str(value).strip()  # 去掉前后空格
+                    if year_pattern.match(value):
+                        year = int(value)
+                        # 检查年份是否在1900到当前年份之间
+                        if not (1900 <= year <= current_year):
+                            year_errors.append(
+                                f"In row {i}, the value '{value}' in the 'Year' column is out of the valid range (1900-{current_year})")
+                            styles.at[i, 'Year'] = 'background-color: red; color: white;'
+                    else:
+                        # 如果不匹配四位整数，直接标记为格式错误
+                        year_errors.append(f"In row {i}, the value '{value}' in the 'Year' column does not match the required format")
                         styles.at[i, 'Year'] = 'background-color: red; color: white;'
-                else:
-                    # 如果不匹配四位整数，直接标记为格式错误
-                    year_errors.append(f"In row {i}, the value '{value}' in the 'Year' column does not match the required format")
-                    styles.at[i, 'Year'] = 'background-color: red; color: white;'
         if len(year_errors) > 0:
             errors["Year"] = year_errors
 
