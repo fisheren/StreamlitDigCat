@@ -41,7 +41,7 @@ def collect_errors_and_styles(_df, expected_columns, reaction, doi_db):
     valid_dois_with_indices = []
     valid_dois_list = []
     doi_rm_ls = []
-    doi_pattern = re.compile(r'10\.\d+\/[\w.\-\/]+')
+    doi_pattern = re.compile(r'10\.\d+\/[\w.\-\/()]+')
     index_to_drop = []
     # 检查DOI列
     if "DOI" in _df.columns:
@@ -66,6 +66,12 @@ def collect_errors_and_styles(_df, expected_columns, reaction, doi_db):
                     else:
                         styles.at[i, "DOI"] = 'background-color: orange; color: black;'
                         doi_errors.append(f"Row {i} in the 'DOI' column does not contain a valid DOI")
+                else:
+                    styles.at[i, "DOI"] = 'background-color: orange; color: black;'
+                    doi_errors.append(f"Use “Upload by online interface” to upload Unpublished DOI in row {i}")
+            else:
+                styles.at[i, "DOI"] = 'background-color: orange; color: black;'
+                doi_errors.append(f"Use “Upload by online interface” to upload Unpublished DOI")
 
         # 去掉重复的DOI
         seen_dois = set()
