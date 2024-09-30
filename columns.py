@@ -720,3 +720,8 @@ reaction_options = {
         ]
     }
 }
+
+
+adsorbate = {
+    "FeAzPc-8N-8Me": ["EHO*", "EO*", "EHOO*", "EO2*", "EH2O2*"]
+}
