@@ -15,8 +15,8 @@ def collect_errors_and_styles(_df, expected_columns, reaction, doi_db):
 
     # 部分单位的转换
     equivalent_units = {
-        'Celsius': ['°C', 'Celsius'],
-        '°C': ['Celsius'],
+        'Celsius': ['°C', 'Celsius', "K"],
+        '°C': ['Celsius', '°C', "K"],
         'bar': ['MPa'],
     }
 
@@ -229,74 +229,74 @@ def collect_errors_and_styles(_df, expected_columns, reaction, doi_db):
         if len(content_errors) > 0:
             errors["Content"] = content_errors
 
-        # 检查条件列（包含@）
-        condition_errors = []
-        condition_pattern = re.compile(r'^[-+]?\d+(\.\d+)?@\s*[-+]?\d+(\.\d+)?(\s*[a-zA-Z/%-]*)?$')
-        conditional_columns = [col for col in _df.columns if '@' in col]
-        for col in conditional_columns:
-            for i, value in enumerate(_df[col]):
-                if i not in index_to_drop:
-                    if pd.notna(value):
-                        value = str(value).strip()  # 去掉前后空格
-                        match = condition_pattern.match(value)
-                        if not match:
-                            # 标记错误的单元格位置
-                            condition_errors.append(f"In row {i}, the value '{value}' in the '{col}' column does not match the required format")
-                            styles.at[i, col] = 'background-color: blue; color: white;'
+    # 检查条件列（包含@）
+    condition_errors = []
+    condition_pattern = re.compile(r'^[-+]?\d+(\.\d+)?@\s*[-+]?\d+(\.\d+)?(\s*[a-zA-Z/%-]*)?$')
+    conditional_columns = [col for col in _df.columns if '@' in col]
+    for col in conditional_columns:
+        for i, value in enumerate(_df[col]):
+            if i not in index_to_drop:
+                if pd.notna(value):
+                    value = str(value).strip()  # 去掉前后空格
+                    match = condition_pattern.match(value)
+                    if not match:
+                        # 标记错误的单元格位置
+                        condition_errors.append(f"In row {i}, the value '{value}' in the '{col}' column does not match the required format")
+                        styles.at[i, col] = 'background-color: blue; color: white;'
 
-        if len(condition_errors) > 0:
-            errors["Condition"] = condition_errors
+    if len(condition_errors) > 0:
+        errors["Condition"] = condition_errors
 
-    # 找到带有单位的列
-    unit_errors = []
-    unit_columns = [col for col in _df.columns if re.search(r'\(.*\)', col)
-                    and '@' not in col
-                    and col != "Other product (FE > 10%)"]
-    for col in unit_columns:
-        # 从列名中提取单位
-        unit_col_match = re.search(r'\((.*?)\)', col)
-        if unit_col_match:
-            unit_col = unit_col_match.group(1).strip()  # 提取并清理单位
-
-            # 编译用于检查纯数字的正则表达式
-            number_pattern = re.compile(r'^[<>≤≥]?\d+(\.\d+)?(±\d+(\.\d+)?)?$')
-
-            for i, value in enumerate(_df[col]):
-                if i not in index_to_drop:
-                    if pd.notna(value):
-                        value = str(value).strip()  # 去除两端空格
-
-                        # 1. 检查是否为纯数字
-                        if number_pattern.match(value):
-                            # 是纯数字，直接通过
-                            continue
-
-                        # 2. 检查数字和单位的情况
-                        number_match = re.match(r'^(\d+(\.\d+)?)(.*)$', value)
-                        if number_match:
-                            number_part = number_match.group(1)
-                            unit_value = number_match.group(3).strip()  # 获取数字后的内容
-
-                            # 检查是否包含括号
-                            unit_value_match = re.search(r'\((.*?)\)', unit_value)
-                            if unit_value_match:
-                                unit_value = unit_value_match.group(1).strip()  # 提取括号内的内容
-                            else:
-                                unit_value = unit_value.strip()  # 如果没有括号，直接使用原值
-
-                            # 3. 比较 unit_value 和 unit_col，考虑等价替换
-                            if unit_value != unit_col and unit_value not in equivalent_units.get(unit_col, []):
-                                # 不匹配，标记错误
-                                styles.at[
-                                    i, col] = 'background-color: purple; color: white;'  # Purple for unit format errors
-                                unit_errors.append(f"In row {i}, the unit in the '{col}' column is invalid or mismatched")
-                        else:
-                            # 格式不匹配
-                            styles.at[i, col] = 'background-color: purple; color: white;'  # Purple for unit format errors
-                            unit_errors.append(f"In row {i}, the value format in the '{col}' column is invalid")
-
-    if len(unit_errors) > 0:
-        errors["Unit"] = unit_errors
+    # # 找到带有单位的列
+    # unit_errors = []
+    # unit_columns = [col for col in _df.columns if re.search(r'\(.*\)', col)
+    #                 and '@' not in col
+    #                 and col != "Other product (FE > 10%)"]
+    # for col in unit_columns:
+    #     # 从列名中提取单位
+    #     unit_col_match = re.search(r'\((.*?)\)', col)
+    #     if unit_col_match:
+    #         unit_col = unit_col_match.group(1).strip()  # 提取并清理单位
+    #
+    #         # 编译用于检查纯数字的正则表达式
+    #         number_pattern = re.compile(r'^[<>≤≥]?\d+(\.\d+)?(±\d+(\.\d+)?)?$')
+    #
+    #         for i, value in enumerate(_df[col]):
+    #             if i not in index_to_drop:
+    #                 if pd.notna(value):
+    #                     value = str(value).strip()  # 去除两端空格
+    #
+    #                     # 1. 检查是否为纯数字
+    #                     if number_pattern.match(value):
+    #                         # 是纯数字，直接通过
+    #                         continue
+    #
+    #                     # 2. 检查数字和单位的情况
+    #                     number_match = re.match(r'^(\d+(\.\d+)?)(.*)$', value)
+    #                     if number_match:
+    #                         number_part = number_match.group(1)
+    #                         unit_value = number_match.group(3).strip()  # 获取数字后的内容
+    #
+    #                         # 检查是否包含括号
+    #                         unit_value_match = re.search(r'\((.*?)\)', unit_value)
+    #                         if unit_value_match:
+    #                             unit_value = unit_value_match.group(1).strip()  # 提取括号内的内容
+    #                         else:
+    #                             unit_value = unit_value.strip()  # 如果没有括号，直接使用原值
+    #
+    #                         # 3. 比较 unit_value 和 unit_col，考虑等价替换
+    #                         if unit_value != unit_col and unit_value not in equivalent_units.get(unit_col, []):
+    #                             # 不匹配，标记错误
+    #                             styles.at[
+    #                                 i, col] = 'background-color: purple; color: white;'
+    #                             unit_errors.append(f"In row {i}, the unit in the '{col}' column is invalid or mismatched")
+    #                     else:
+    #                         # 格式不匹配
+    #                         styles.at[i, col] = 'background-color: purple; color: white;'
+    #                         unit_errors.append(f"In row {i}, the value format in the '{col}' column is invalid")
+    #
+    # if len(unit_errors) > 0:
+    #     errors["Unit"] = unit_errors
 
     # 检查反应产物
     product_errors = []
