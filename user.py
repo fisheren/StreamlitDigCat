@@ -3,7 +3,7 @@ import hashlib
 import yaml
 from yaml.loader import SafeLoader
 import streamlit as st
-# from quickstart_googledrive import init_drive_client, upload_or_replace_file
+from quickstart_googledrive import init_drive_client, upload_or_replace_file
 import os
 
 import random
@@ -43,17 +43,11 @@ def send_email(receiver_email, code):
         st.info("Email sent successfully!")
     except Exception as e:
         st.info(f"Failed to send email: {e}")
-        
+
+
 def verify_code(input_code, actual_code):
     return input_code == actual_code
 
-dir_dict = {
-"excels" : "11FiJrfmOLIopisfqsz7Njru2lgvDVvq2",
-"pdfs"  : "11GcpDma5EpTkWW5Ip7BDislEQ-4XW7MF",
-"modifications": "13GbGuvKcNIfoUWmhoqE81YTiw7FRqEpo",
-"total_excel": "1cF0RuafYEghVuejjz_VZC1yBB6Gbfb4N",
-"user": "1BvHhy3k_9oelJ1RT9nRuB3s_XWGxq041"
-}
 
 def get_hashed_pw(pw_string):
     hashed_password = hashlib.sha256(pw_string.encode('utf-8')).hexdigest()
@@ -71,7 +65,7 @@ def update_passwd(authenticator, config, yaml_file = 'user.yaml'):
             if authenticator.reset_password(st.session_state["username"]):
                 with open(yaml_file, 'w') as file:
                     yaml.dump(config, file, default_flow_style=False)                
-                # upload_or_replace_file("user.yaml", os.path.join(os.getcwd(), "user.yaml"), 'application/x-yaml', dir_dict["user"], init_drive_client())
+                upload_or_replace_file("user.yaml", os.path.join(os.getcwd(), "user.yaml"), 'application/x-yaml', dir_dict["user"], init_drive_client())
                 st.success('Password modified successfully')
                 st.session_state['Reset Password'] = False 
         except Exception as e:
@@ -94,7 +88,7 @@ def registration(authenticator, config, yaml_file = 'user.yaml', preauthori = Fa
         if email_of_registered_user:
             with open(yaml_file, 'w') as file:
                 yaml.dump(config, file, default_flow_style=False)
-            # upload_or_replace_file("user.yaml", os.path.join(os.getcwd(), "user.yaml"), 'application/x-yaml', dir_dict["user"], init_drive_client())
+            upload_or_replace_file("user.yaml", os.path.join(os.getcwd(), "user.yaml"), 'application/x-yaml', dir_dict["user"], init_drive_client())
             st.success('User registered successfully')
     except Exception as e:
         st.error(e)
@@ -129,7 +123,7 @@ def forget_passwd(authenticator, config, yaml_file = 'user.yaml'):
                 if username_of_forgotten_password and email_of_forgotten_password == code_email:
                     with open(yaml_file, 'w') as file:
                         yaml.dump(config, file, default_flow_style=False)
-                    # upload_or_replace_file("user.yaml", os.path.join(os.getcwd(), "user.yaml"), 'application/x-yaml', dir_dict["user"], init_drive_client())
+                    upload_or_replace_file("user.yaml", os.path.join(os.getcwd(), "user.yaml"), 'application/x-yaml', dir_dict["user"], init_drive_client())
                     st.markdown(f'New password is: **{new_random_password}**') 
                     st.session_state['Forgot Password?'] = False
                     st.session_state['email_check'] = False
@@ -145,7 +139,6 @@ def forget_passwd(authenticator, config, yaml_file = 'user.yaml'):
                 st.error(e)
                 st.session_state['Forgot Password?'] = False
                 st.session_state['email_check'] = False
-
 
 
 def login(yaml_file = 'user.yaml', preauthori = False):
