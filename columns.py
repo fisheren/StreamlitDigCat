@@ -722,7 +722,7 @@ reaction_options = {
 }
 
 
-adsorbate = {
+adsorbate_dic = {
     "Oxygen Reduction Reaction": ["EHO*", "EO*", "EHOO*", "EO2*", "EH2O2*"],
     "Oxygen Evolution Reaction": ["EHO*", "EO*", "EHOO*", "EO2*"],
     "Hydrogen Evolution Reaction": ["EH"],
