@@ -725,7 +725,7 @@ reaction_options = {
 adsorbate_dic = {
     "Oxygen Reduction Reaction": ["EHO*", "EO*", "EHOO*", "EO2*", "EH2O2*"],
     "Oxygen Evolution Reaction": ["EHO*", "EO*", "EHOO*", "EO2*"],
-    "Hydrogen Evolution Reaction": ["EH"],
-    "Carbon Dioxide Reduction": ["ECOOH", "ECO"]
+    "Hydrogen Evolution Reaction": ["EH*"],
+    "Carbon Dioxide Reduction": ["ECOOH*", "ECO*"]
 }
 
