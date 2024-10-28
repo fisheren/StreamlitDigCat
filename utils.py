@@ -1,6 +1,6 @@
 import pickle
 import re
-
+import os
 
 
 # 以下为使用GoogleDrive 进行读取文件的函数
@@ -51,7 +51,7 @@ def get_total_excel(thermo_flag, photo_flag):
 """
 
 
-def is_incar(file):
+def is_INCAR(file):
     try:
         lines = file.read().decode('utf-8').splitlines()
         file.seek(0)
@@ -62,7 +62,7 @@ def is_incar(file):
         return False
 
 
-def is_kpoints(file):
+def is_KPOINTS(file):
     try:
         lines = file.read().decode('utf-8').splitlines()
         file.seek(0)
@@ -93,7 +93,7 @@ def is_kpoints(file):
         return False
 
 
-def is_contcar(file):
+def is_CONTCAR(file):
     try:
         lines = file.read().decode('utf-8').splitlines()
         file.seek(0)
@@ -133,48 +133,55 @@ def is_contcar(file):
         return False
 
 
-def is_cif(file):
+def is_CIF(file):
+    """
+    严格检测文件对象是否为标准的 CIF 文件。
+
+    通过检查文件结构、关键字和符合 IUCr 标准的格式来确保检测的准确性。
+
+    :param file: 已打开的文件对象,二进制字节
+    :return: 如果是标准 CIF 文件返回 True，否则返回 False
+    """
+    # 定义 CIF 文件常见的正则表达式
+    cif_data_block_pattern = re.compile(r"^data_.*")  # CIF 文件必须以 data_ 开头
+    cif_key_value_pattern = re.compile(r"^_\w+[\s\S]*")  # CIF 中的 key-value 格式，key 以 _ 开头
+    cif_loop_pattern = re.compile(r"^loop_")  # CIF 中的循环数据
     try:
-        # 读取文件内容并将其拆分为多行
         lines = file.read().decode('utf-8').splitlines()
-        file.seek(0)  # 重置文件指针，以便其他地方读取文件
+    except UnicodeDecodeError as e:
+        print(e)
+        return False
+    file.seek(0)
 
-        # CIF 文件应该至少包含一个 data_ 块（即以 data_ 开头的行）
-        if not any(line.startswith("data_") for line in lines):
-            return False
+    try:
+        data_block_found = False
+        valid_lines = 0  # 有效的 CIF 行计数
 
-        # 检查是否存在至少一个以 _ 开头的关键字（key-value 对）
-        if not any(line.startswith("_") for line in lines):
-            return False
-
-        # 检查是否包含至少一行数据循环的标记 "loop_"
-        if not any(line.startswith("loop_") for line in lines):
-            return False
-
-        # 进一步检查关键字和值的格式，如 _key value
+        # 逐行读取文件对象
         for line in lines:
             line = line.strip()
 
-            # 如果是以 _ 开头的关键字行，检查是否有对应的值
-            if line.startswith("_"):
-                # 拆分关键字和值，确保至少有两个部分
-                parts = line.split()
-                if len(parts) < 2:
-                    return False
+            # 检查是否包含 data_ 数据块
+            if cif_data_block_pattern.match(line):
+                data_block_found = True
+                # print("data_block_found")
 
-                # 可以根据需要进一步检查关键字的合法性和格式，例如:
-                # if not re.match(r"^_\w+$", parts[0]):
-                #     return False
+            # 检查 key-value 格式或者 loop_
+            if cif_key_value_pattern.match(line) or cif_loop_pattern.match(line):
+                valid_lines += 1
 
-        # 如果通过了所有检查，返回 True
-        return True
+        # 判断文件是否符合 CIF 文件的基本格式
+        if data_block_found and valid_lines > 0:
+            return True  # 满足所有 CIF 标准
+        else:
+            return False  # 不满足 CIF 标准
 
     except Exception as e:
-        print(f"Error reading file: {e}")
+        print(f"读取文件时发生错误: {e}")
         return False
 
 
-def is_xyz(file):
+def is_XYZ(file):
     try:
         # 读取文件内容并将其拆分为多行
         lines = file.read().decode('utf-8').splitlines()
@@ -239,15 +246,73 @@ def is_valid_doi(doi):
         return False
 
 
+def get_formula_adsorbate(filename):
+    name_without_extension = os.path.splitext(filename)[0]
 
+    # 用下划线分割文件名
+    parts = name_without_extension.split('_')
+
+    # 提取 formula 和 adsorbate_dic 的逻辑
+    if len(parts) == 3:
+        # 如果包含三个部分，说明有 file_type, formula 和 adsorbate_dic
+        file_type, formula, adsorbate = parts
+    elif len(parts) == 2:
+        # 如果只有两个部分，说明只有 file_type 和 formula，没有 adsorbate_dic
+        file_type, formula = parts
+        adsorbate = None  # 没有 adsorbate_dic
+    else:
+        raise ValueError
+
+    return formula, adsorbate
+
+
+def is_filename_valid(filename, file_type):
+    # 去掉扩展名，获取文件名和扩展名
+    name_without_extension, ext = os.path.splitext(filename)
+    if file_type in ['INCAR', 'KPOINTS']:
+        parts = name_without_extension.split('_')
+        if len(parts) == 2 and parts[0] == file_type:
+            return True
+        else:
+            return False
+    # CONTCAR 文件没有扩展名，遵循 f"{file_type}_{formula}_{adsorbate_dic}" 的规则
+    if file_type in ['CONTCAR']:
+        parts = name_without_extension.split('_')
+        if len(parts) == 3 and parts[0] == file_type:
+            return True
+        elif len(parts) == 2 and parts[0] == file_type:  # 没有 adsorbate_dic 的情况
+            return True
+        else:
+            return False
+
+    # CIF 和 XYZ 文件要遵循 f"{file_type}_{formula}_{adsorbate_dic}"，并且有扩展名
+    elif file_type == 'CIF' or file_type == 'XYZ':
+        if ext.lower() != f".{file_type.lower()}":  # 检查扩展名
+            return False
+
+        parts = name_without_extension.split('_')
+        if len(parts) == 3 and parts[0] == file_type:
+            return True
+        elif len(parts) == 2 and parts[0] == file_type:  # 没有 adsorbate_dic 的情况
+            return True
+        else:
+            return False
+
+    # 如果文件类型不符合任何已知类型，则返回 False
+    return False
 
 
 # 文件夹对应的检查函数映射
 check_functions = {
-    'CONTCAR': is_contcar,
-    'CIF': is_cif,
-    'INCAR': is_incar,
-    'KPOINTS': is_kpoints,
-    'XYZ': is_xyz
+    'CONTCAR': is_CONTCAR,
+    'CIF': is_CIF,
+    'INCAR': is_INCAR,
+    'KPOINTS': is_KPOINTS,
+    'XYZ': is_XYZ
 }
+
+
+if __name__ == '__main__':
+    print(is_filename_valid("CONTCAR", "CONTCAR_Co-Pc"))
+
 
