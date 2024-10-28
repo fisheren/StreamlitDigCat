@@ -3,12 +3,16 @@ import pandas as pd
 import pickle
 import streamlit as st
 import re
-# from quickstart_googledrive import upload_or_replace_file, download_folder_contents, st_upload_file_to_drive, file_from_gdrive, dir_dict
-# from quickstart_googledrive import init_drive_client
-# from quickstart_googledrive import dir_dict
+
+import uploadStruc
+import uploadStrucbyZIP
+import utils
+from quickstart_googledrive import upload_or_replace_file, st_upload_file_to_drive, file_from_gdrive, dir_dict
+from quickstart_googledrive import init_drive_client
+
 from ReadExcel_df import collect_errors_and_styles
-from columns import column_title_dict
-from utils import get_total_excel
+from columns import column_title_dict, adsorbate_dic
+from utils import get_total_excel, is_valid_doi
 
 from user import login
 from datetime import datetime
@@ -19,47 +23,47 @@ from openpyxl import load_workbook
 
 # 反应名称及简写
 sheet_dict = {
-        "Oxygen Reduction Reaction": "ORR", # 1
-        "Oxygen Evolution Reaction": "OER", # 2
-        "Hydrogen Evolution Reaction": "HER", # 3
-        "Carbon Dioxide Reduction": "CO2RR", # 4
-        "Carbon Monoxide Reduction": "CORR",
-        "Ammonia Synthesis": "NRR", # 5
-        "Hydrogen Oxidation Reaction": "HOR", # 6
-        "Hydrogen Peroxide Synthesis": "water oxidation-H2O2", # 7
-        "Epoxide Production": "Epoxide_Production", # 8
-        "Chlorination Evolution Reaction": "Chlorination evolution reaction", # 9
-        "Ozone Evolution Reaction": "O3ER", # 10
-        "Nitrogen Oxidation Reaction": "NOR", # 11
-        "NH3 Oxidation Reaction": "NH3OR", # 12
-        "Urea Oxidation Reaction": "UOR", # 13
-        "Hydrazine Oxidation Reaction": "HzOR", # 14
-        "Urea Synthesis": "Urea Synthesis", # 15
-        "Nitrate Reduction": "Nitrate Reduction", # 16
-        "Electrocatalytic hydrogenation": "Electrocatalytic hydrogenation", # 17
-        "CH4 Oxidation Reaction": "CH4OR", # 18
-        "Methanol Ethanol Reforming": "Methanol Ethanol Reforming", # 19
-        "Organic Electrocatalysis": "Organic Electrocatalysis", # 20
-        "CO Oxidation Reaction": "CO Oxidation Reaction", # 21
-        "5-hydroxymethylfurfural (HMF) Oxidation": "HMF oxidation", # 22
-        "Acetylene semihydrogenation": "Acetylene semihydrogenation", # 23
-        "Ammoximation Reaction": "Ammoximation Reaction", # 24
-        "Oxygen-containing radical synthesis": "Oxygen-containing radical",
+    "Oxygen Reduction Reaction": "ORR",  # 1
+    "Oxygen Evolution Reaction": "OER",  # 2
+    "Hydrogen Evolution Reaction": "HER",  # 3
+    "Carbon Dioxide Reduction": "CO2RR",  # 4
+    "Carbon Monoxide Reduction": "CORR",
+    "Ammonia Synthesis": "NRR",  # 5
+    "Hydrogen Oxidation Reaction": "HOR",  # 6
+    "Hydrogen Peroxide Synthesis": "water oxidation-H2O2",  # 7
+    "Epoxide Production": "Epoxide_Production",  # 8
+    "Chlorination Evolution Reaction": "Chlorination evolution reaction",  # 9
+    "Ozone Evolution Reaction": "O3ER",  # 10
+    "Nitrogen Oxidation Reaction": "NOR",  # 11
+    "NH3 Oxidation Reaction": "NH3OR",  # 12
+    "Urea Oxidation Reaction": "UOR",  # 13
+    "Hydrazine Oxidation Reaction": "HzOR",  # 14
+    "Urea Synthesis": "Urea Synthesis",  # 15
+    "Nitrate Reduction": "Nitrate Reduction",  # 16
+    "Electrocatalytic hydrogenation": "Electrocatalytic hydrogenation",  # 17
+    "CH4 Oxidation Reaction": "CH4OR",  # 18
+    "Methanol Ethanol Reforming": "Methanol Ethanol Reforming",  # 19
+    "Organic Electrocatalysis": "Organic Electrocatalysis",  # 20
+    "CO Oxidation Reaction": "CO Oxidation Reaction",  # 21
+    "5-hydroxymethylfurfural (HMF) Oxidation": "HMF oxidation",  # 22
+    "Acetylene semihydrogenation": "Acetylene semihydrogenation",  # 23
+    "Ammoximation Reaction": "Ammoximation Reaction",  # 24
+    "Oxygen-containing radical synthesis": "Oxygen-containing radical",
 
-        # Thermocatalysis
-        "Propane dehydrogenation": "Propane dehydrogenation", # 1
-        "Carbon monoxide oxidation": "Carbon monoxide oxidation",
-        "Carbon dioxide hydrogenation": "CO2hydro",
-        "Thermal Ammonia Synthesis": "Ammonia",
-        "Carbon dioxide + methonal = DMC(dimethyl carbonate)": "CO2methonal2DMC",
-        "Fischer-Tropsch Synthesis": "Fischer Tropsch Synthesis",
-        "Methanol Oxidative Carbonylation to DMC": "Methanol Oxidative to DMC",
+    # Thermocatalysis
+    "Propane dehydrogenation": "Propane dehydrogenation",  # 1
+    "Carbon monoxide oxidation": "Carbon monoxide oxidation",
+    "Carbon dioxide hydrogenation": "CO2hydro",
+    "Thermal Ammonia Synthesis": "Ammonia",
+    "Carbon dioxide + methonal = DMC(dimethyl carbonate)": "CO2methonal2DMC",
+    "Fischer-Tropsch Synthesis": "Fischer Tropsch Synthesis",
+    "Methanol Oxidative Carbonylation to DMC": "Methanol Oxidative to DMC",
 
-        # Photocatalysis
-        "Solar Water Splitting": "Solar Water Splitting",
-        "HMF oxidation": "HMF oxidation",
-        "Oxygen-containing radical": "Oxygen-containing radical",
-        "CO2methonal2DMC": "CO2methonal2DMC",
+    # Photocatalysis
+    "Solar Water Splitting": "Solar Water Splitting",
+    "HMF oxidation": "HMF oxidation",
+    "Oxygen-containing radical": "Oxygen-containing radical",
+    "CO2methonal2DMC": "CO2methonal2DMC",
 
 }
 
@@ -96,17 +100,17 @@ def read_excel_data(file_path, sheet_name=0, row=None, column=None):
 
 def streamlit_frame():
     st.set_page_config(
-    page_title="Contribution to Digcat",
-    page_icon="🎏",
-    layout='wide'
+        page_title="Contribution to Digcat",
+        page_icon="🎏",
+        layout='wide'
     )
 
-    #st.sidebar.image("logo.svg")
+    # st.sidebar.image("logo.svg")
     st.sidebar.markdown('<h1 style="font-size: 2em;">Contribution to Digcat</h1>', unsafe_allow_html=True)
     st.sidebar.markdown("# 	:roller_coaster:Entry:")
     st.image("title.svg", use_column_width=True)
 
-    thermo_on = st.sidebar.toggle("Switching to Thermocatalysis",)
+    thermo_on = st.sidebar.toggle("Switching to Thermocatalysis", )
     photo_on = st.sidebar.toggle("Switching to Photocatalysis", disabled=thermo_on)
 
     st.sidebar.header("Please choose the reaction type:")
@@ -115,91 +119,91 @@ def streamlit_frame():
     st.sidebar.markdown("### :robot_face: Electrocatalysis:")
 
     reaction_name = st.sidebar.selectbox(" ", (
-                                          "1. Oxygen Reduction Reaction",
-                                          "2. Oxygen Evolution Reaction",
-                                          "3. Hydrogen Evolution Reaction",
-                                          "4. Carbon Dioxide Reduction",
-                                          "5. Carbon Monoxide Reduction",
-                                          "6. Ammonia Synthesis",
-                                          "7. Hydrogen Oxidation Reaction",
-                                          "8. Hydrogen Peroxide Synthesis",
-                                          "9. Epoxide Production",
-                                          "10. Chlorination Evolution Reaction",
-                                          "11. Ozone Evolution Reaction",
-                                          "12. Nitrogen Oxidation Reaction",
-                                          "13. NH3 Oxidation Reaction",
-                                          "14. Urea Oxidation Reaction",
-                                          "15. Hydrazine Oxidation Reaction",
-                                          "16. Urea Synthesis",
-                                          "17. Nitrate Reduction",
-                                          "18. Electrocatalytic hydrogenation",
-                                          "19. CH4 Oxidation Reaction",
-                                          "20. Methanol Ethanol Reforming",
-                                          "21. Organic Electrocatalysis",
-                                          "22. CO Oxidation Reaction",
-                                          "23. 5-hydroxymethylfurfural (HMF) Oxidation",
-                                          "24. Acetylene semihydrogenation",
-                                          "25. Ammoximation Reaction",
-                                          "26. Oxygen-containing radical synthesis",
-                                          "27. Magnetic electrocatalysis",
-                                          "28. Seawater electrolysis"
-                                          ), disabled=st.session_state["modify_data"] or thermo_on or photo_on, label_visibility="collapsed")
+        "1. Oxygen Reduction Reaction",
+        "2. Oxygen Evolution Reaction",
+        "3. Hydrogen Evolution Reaction",
+        "4. Carbon Dioxide Reduction",
+        "5. Carbon Monoxide Reduction",
+        "6. Ammonia Synthesis",
+        "7. Hydrogen Oxidation Reaction",
+        "8. Hydrogen Peroxide Synthesis",
+        "9. Epoxide Production",
+        "10. Chlorination Evolution Reaction",
+        "11. Ozone Evolution Reaction",
+        "12. Nitrogen Oxidation Reaction",
+        "13. NH3 Oxidation Reaction",
+        "14. Urea Oxidation Reaction",
+        "15. Hydrazine Oxidation Reaction",
+        "16. Urea Synthesis",
+        "17. Nitrate Reduction",
+        "18. Electrocatalytic hydrogenation",
+        "19. CH4 Oxidation Reaction",
+        "20. Methanol Ethanol Reforming",
+        "21. Organic Electrocatalysis",
+        "22. CO Oxidation Reaction",
+        "23. 5-hydroxymethylfurfural (HMF) Oxidation",
+        "24. Acetylene semihydrogenation",
+        "25. Ammoximation Reaction",
+        "26. Oxygen-containing radical synthesis",
+        "27. Magnetic electrocatalysis",
+        "28. Seawater electrolysis"
+    ), disabled=st.session_state["modify_data"] or thermo_on or photo_on, label_visibility="collapsed")
 
     if reaction_name == "27. Magnetic electrocatalysis":
         reaction_name_mag = st.sidebar.selectbox(" ", (
-                                              "1. Oxygen Reduction Reaction",
-                                              "2. Oxygen Evolution Reaction",
-                                              "3. Hydrogen Evolution Reaction",
-                                              "4. Carbon Dioxide Reduction",
-                                              "5. Carbon Monoxide Reduction"
-                                              "6. Ammonia Synthesis",
-                                              "7. Hydrogen Oxidation Reaction",
-                                              "8. Hydrogen Peroxide Synthesis",
-                                              "9. Epoxide Production",
-                                              "10. Chlorination Evolution Reaction",
-                                              "11. Ozone Evolution Reaction",
-                                              "12. Nitrogen Oxidation Reaction",
-                                              "13. NH3 Oxidation Reaction",
-                                              "14. Urea Oxidation Reaction",
-                                              "15. Hydrazine Oxidation Reaction",
-                                              "16. Urea Synthesis",
-                                              "17. Nitrate Reduction",
-                                              "18. Electrocatalytic hydrogenation",
-                                              "19. CH4 Oxidation Reaction",
-                                              "20. Methanol Ethanol Reforming",
-                                              "21. Organic Electrocatalysis",
-                                              "22. CO Oxidation Reaction",
-                                              "23. 5-hydroxymethylfurfural (HMF) Oxidation",
-                                              "24. Acetylene semihydrogenation",
-                                              "25. Ammoximation Reaction",
-                                              "26. Oxygen-containing radical synthesis",
-                                              ), disabled = st.session_state["modify_data"] or thermo_on or photo_on, label_visibility = "collapsed")
+            "1. Oxygen Reduction Reaction",
+            "2. Oxygen Evolution Reaction",
+            "3. Hydrogen Evolution Reaction",
+            "4. Carbon Dioxide Reduction",
+            "5. Carbon Monoxide Reduction"
+            "6. Ammonia Synthesis",
+            "7. Hydrogen Oxidation Reaction",
+            "8. Hydrogen Peroxide Synthesis",
+            "9. Epoxide Production",
+            "10. Chlorination Evolution Reaction",
+            "11. Ozone Evolution Reaction",
+            "12. Nitrogen Oxidation Reaction",
+            "13. NH3 Oxidation Reaction",
+            "14. Urea Oxidation Reaction",
+            "15. Hydrazine Oxidation Reaction",
+            "16. Urea Synthesis",
+            "17. Nitrate Reduction",
+            "18. Electrocatalytic hydrogenation",
+            "19. CH4 Oxidation Reaction",
+            "20. Methanol Ethanol Reforming",
+            "21. Organic Electrocatalysis",
+            "22. CO Oxidation Reaction",
+            "23. 5-hydroxymethylfurfural (HMF) Oxidation",
+            "24. Acetylene semihydrogenation",
+            "25. Ammoximation Reaction",
+            "26. Oxygen-containing radical synthesis",
+        ), disabled=st.session_state["modify_data"] or thermo_on or photo_on, label_visibility="collapsed")
 
     if reaction_name == "28. Seawater electrolysis":
         reaction_name_sea = st.sidebar.selectbox(" ", (
-                                              "1. Oxygen Evolution Reaction",
-                                              "2. Hydrogen Evolution Reaction",
-                                              "3. Chlorination Evolution Reaction",
-                                              ), disabled = st.session_state["modify_data"] or thermo_on or photo_on, label_visibility = "collapsed")
+            "1. Oxygen Evolution Reaction",
+            "2. Hydrogen Evolution Reaction",
+            "3. Chlorination Evolution Reaction",
+        ), disabled=st.session_state["modify_data"] or thermo_on or photo_on, label_visibility="collapsed")
 
     st.sidebar.markdown("\n\n\n\n\n\n\n\n\n\n")
 
     st.sidebar.markdown("### :hotsprings: Thermocatalysis:")
     thermo_reaction_name = st.sidebar.selectbox(" ", (
-                                          "1. Propane dehydrogenation",
-                                          "2. Carbon monoxide oxidation",
-                                          "3. Carbon dioxide hydrogenation",
-                                          "4. Thermal Ammonia Synthesis",
-                                          "5. Carbon dioxide + methonal = DMC(dimethyl carbonate)",
-                                          "6. Fischer-Tropsch Synthesis",
-                                          "7. Methanol Oxidative Carbonylation to DMC"
-                                          ), disabled = st.session_state["modify_data"] or not thermo_on, label_visibility = "collapsed")
+        "1. Propane dehydrogenation",
+        "2. Carbon monoxide oxidation",
+        "3. Carbon dioxide hydrogenation",
+        "4. Thermal Ammonia Synthesis",
+        "5. Carbon dioxide + methonal = DMC(dimethyl carbonate)",
+        "6. Fischer-Tropsch Synthesis",
+        "7. Methanol Oxidative Carbonylation to DMC"
+    ), disabled=st.session_state["modify_data"] or not thermo_on, label_visibility="collapsed")
 
     st.sidebar.markdown("\n\n\n\n\n\n\n\n\n\n")
     st.sidebar.markdown("### :sunny: Photocatalysis:")
     photo_reaction_name = st.sidebar.selectbox(" ", (
-                                          "1. Solar Water Splitting",
-                                          ), disabled = st.session_state["modify_data"] or not photo_on or thermo_on, label_visibility = "collapsed")
+        "1. Solar Water Splitting",
+    ), disabled=st.session_state["modify_data"] or not photo_on or thermo_on, label_visibility="collapsed")
 
     if thermo_on:
         reaction_name = thermo_reaction_name.split(".")[-1].strip()
@@ -232,7 +236,7 @@ def streamlit_frame():
 
 
 def reaction_column_title_dict(reaction_name, mag_flag, sea_flag):
-    column_title_dict = {
+    _column_title_dict = {
         "Oxygen Reduction Reaction":
             {
                 "Formula": "e.g. PtNi",
@@ -880,27 +884,36 @@ def reaction_column_title_dict(reaction_name, mag_flag, sea_flag):
             raise KeyError(f"Key '{key}' not found in the dictionary.")
 
     if mag_flag:
-        for k, v in column_title_dict.items():
+        for k, v in _column_title_dict.items():
             if "Electrolytes" in v.keys():
-                column_title_dict[k] = add_key_value_after(v, "Electrolytes", "Magnetic field (mT)", "e.g. 100")
+                _column_title_dict[k] = add_key_value_after(v, "Electrolytes", "Magnetic field (mT)", "e.g. 100")
     if sea_flag:
-        for k, v in column_title_dict.items():
+        for k, v in _column_title_dict.items():
             if "Electrolytes" in v.keys() and "Tafel_slope (mVdev-1)" in v.keys():
-                column_title_dict[k] = add_key_value_after(column_title_dict[k], "Electrolytes", "Seawater simulated electrolyte", "e.g. 1M NaCl")
-                column_title_dict[k] = add_key_value_after(column_title_dict[k], "Tafel_slope (mVdev-1)", "Overall seawater spilting Over_Potential (mV@ j mA cm-2)", "e.g. 234@10")
-                column_title_dict[k] = add_key_value_after(column_title_dict[k], "Overall seawater spilting Over_Potential (mV@ j mA cm-2)", "Overall seawater spilting Current_density (mA/cm2@ U V/RHE)", "e.g. 40@1.79")
-                column_title_dict[k] = add_key_value_after(column_title_dict[k], "Overall seawater spilting Current_density (mA/cm2@ U V/RHE)", "Overall seawater spilting Stability Test (h@ mAcm-2)", "e.g. 200@500")
-    return column_title_dict[reaction_name]
+                _column_title_dict[k] = add_key_value_after(_column_title_dict[k], "Electrolytes",
+                                                            "Seawater simulated electrolyte", "e.g. 1M NaCl")
+                _column_title_dict[k] = add_key_value_after(_column_title_dict[k], "Tafel_slope (mVdev-1)",
+                                                            "Overall seawater spilting Over_Potential (mV@ j mA cm-2)",
+                                                            "e.g. 234@10")
+                _column_title_dict[k] = add_key_value_after(_column_title_dict[k],
+                                                            "Overall seawater spilting Over_Potential (mV@ j mA cm-2)",
+                                                            "Overall seawater spilting Current_density (mA/cm2@ U V/RHE)",
+                                                            "e.g. 40@1.79")
+                _column_title_dict[k] = add_key_value_after(_column_title_dict[k],
+                                                            "Overall seawater spilting Current_density (mA/cm2@ U V/RHE)",
+                                                            "Overall seawater spilting Stability Test (h@ mAcm-2)",
+                                                            "e.g. 200@500")
+    return _column_title_dict[reaction_name]
 
 
 def special_metric(reaction_name, key):
     special_dict = {
         "Carbon Dioxide Reduction": {"Main product": True, "Other product (FE > 10%)": True},
-        "Ammonia Synthesis": {"Isotope labeling":True, "Reactant": True},
-        "Epoxide Production": {"Main product":True},
-        "Nitrogen Oxidation Reaction":{"Main product": True},
-        "NH3 Oxidation Reaction":{"Main product":True},
-        "Urea Oxidation Reaction":{"Main product":True}
+        "Ammonia Synthesis": {"Isotope labeling": True, "Reactant": True},
+        "Epoxide Production": {"Main product": True},
+        "Nitrogen Oxidation Reaction": {"Main product": True},
+        "NH3 Oxidation Reaction": {"Main product": True},
+        "Urea Oxidation Reaction": {"Main product": True}
     }
 
     # Use a single line to get the value from the nested dictionary
@@ -914,11 +927,15 @@ def subcategory_dict(main_category):
         "Metal/Alloy": ["Transition Metal/Alloy", "Main group Metal/Alloy"],
         "Metal_C/N/O/HO/F/S/P-ides": ["Carbide", "Nitride", "Oxide", "Hydroxide",
                                       "Fluoride", "Sulfide", "Phosphide"],
-        "Metal-Nitrogen-Carbon(CNT/graphene)": ["Single atom catalysts (pyridine/pyrrole-N)", "Single atom catalysts (COF/MOF)", "Single-atom catalysts with other elemental coordination", "Dual atom catalysts", "Metal/Nitrogen-doped CNT", "Metal/Nitrogen-doped graphene"],
+        "Metal-Nitrogen-Carbon(CNT/graphene)": ["Single atom catalysts (pyridine/pyrrole-N)",
+                                                "Single atom catalysts (COF/MOF)",
+                                                "Single-atom catalysts with other elemental coordination",
+                                                "Dual atom catalysts", "Metal/Nitrogen-doped CNT",
+                                                "Metal/Nitrogen-doped graphene"],
         "2D_materials": ["graphene/graphene oxide", "MXene", "Transition metal sulphides(TMDs)", "Borophene/BN"],
         "Perovskite": [],
         "Others": []
-        }
+    }
     return sub_dict[main_category]
 
 
@@ -975,7 +992,7 @@ def get_doi(doi_input, reaction_name, _dic):
             mask_is_null = _dic[reaction]["modify time"].isnull()
             _dic = _dic[reaction][mask_is_null]
             _dic["DOI"] = _dic["DOI"].str.strip()
-            if doi_input in _dic["DOI"].values:
+            if doi_input.strip() in _dic["DOI"].values:
                 return None
     return doi_input
 
@@ -983,32 +1000,40 @@ def get_doi(doi_input, reaction_name, _dic):
 def get_doi_db(_dic):
     _doi_ls = []
     for sheet_name in _dic.keys():
-        _doi_ls += (list(set(_dic[sheet_name]["DOI"])))
+        mask_is_null = _dic[sheet_name]["modify time"].isnull()
+        _dic[sheet_name] = _dic[sheet_name][mask_is_null]
+        _doi_ls += (list(set(_dic[sheet_name]["DOI"].str.strip())))
     return _doi_ls
 
 
-def extract_and_modify_data(reaction_name, name, username, institute, thermo_flag, photo_flag, admin=None, admin_key="DOI", admin_value=""):
+def extract_and_modify_data(reaction_name, name, username, institute, thermo_flag, photo_flag, admin=None,
+                            admin_key="DOI", admin_value=""):
     total_excel = get_total_excel(thermo_flag, photo_flag)
     df_to_be_modified = total_excel[reaction_name]
-    #st.write(df_to_be_modified)
+    st.info("Please do not add new catalys here. This form is only used for modification!")
+    # st.write(df_to_be_modified)
     if username in admin:
         mask = (df_to_be_modified[admin_key] == admin_value) & (df_to_be_modified["modify time"].isnull())
-        #st.write(admin_key)
-        #st.write(admin_value)
-        #st.write(mask)
+        # st.write(admin_key)
+        # st.write(admin_value)
+        # st.write(mask)
     else:
-        mask = ((df_to_be_modified['Name'] == name) | (df_to_be_modified['Name'] == username)) & (df_to_be_modified['Institute'] == institute) & (df_to_be_modified["modify time"].isnull())
+        mask = ((df_to_be_modified['Name'] == name) | (df_to_be_modified['Name'] == username)) & (
+                    df_to_be_modified['Institute'] == institute) & (df_to_be_modified["modify time"].isnull())
     extracted_data = df_to_be_modified[mask]
 
     if len(extracted_data) > 0:
         st.session_state.modified_data = extracted_data
-        st.session_state.modified_data = st.data_editor(st.session_state.modified_data, num_rows="dynamic",column_config = {"modify time": None}, disabled=("Name", "Institute"), hide_index=False)
+        st.session_state.modified_data = st.data_editor(st.session_state.modified_data, num_rows="dynamic",
+                                                        column_config={"modify time": None},
+                                                        disabled=("Name", "Institute"), hide_index=False)
         if st.button("Save changes and continue to upload"):
             with st.status("Updating data...may take 5-10 seconds..", expanded=True) as status:
                 if check_and_update_time():
                     st.write("Generating new data files...")
                     df_to_be_modified.loc[mask, "modify time"] = pd.Timestamp('now')
-                    df_to_be_modified = pd.concat([df_to_be_modified, st.session_state.modified_data], ignore_index=True)
+                    df_to_be_modified = pd.concat([df_to_be_modified, st.session_state.modified_data],
+                                                  ignore_index=True)
                     total_excel[reaction_name] = df_to_be_modified
                     st.write("Updating Cloud Data...")
                     write_total_pickle_upload(total_excel, thermo_flag, photo_flag)
@@ -1031,24 +1056,26 @@ def extract_and_modify_data(reaction_name, name, username, institute, thermo_fla
         return False
 
 
-# 取消注释该函数中的语句
+
 def write_total_pickle_upload(df, thermo_flag, photo_flag):
     if not thermo_flag and not photo_flag:
         pickle_path = os.path.join(".", "total_excel", "total.pkl")
         with open(pickle_path, 'wb') as file:
             pickle.dump(df, file)
-        # upload_or_replace_file("total.pkl", pickle_path, "application/octet-stream", dir_dict["total_excel"])
+        upload_or_replace_file("total.pkl", pickle_path, "application/octet-stream", dir_dict["total_excel"])
     elif thermo_flag:
         pickle_path = os.path.join(".", "total_pickle_thermocatalysis", "thermo_excel.pkl")
         print(pickle_path)
         with open(pickle_path, 'wb') as file:
             pickle.dump(df, file)
-        # upload_or_replace_file("thermo_excel.pkl", pickle_path, "application/octet-stream", dir_dict["total_pickle_thermocatalysis"])
+        upload_or_replace_file("thermo_excel.pkl", pickle_path, "application/octet-stream",
+                               dir_dict["total_pickle_thermocatalysis"])
     elif photo_flag:
         pickle_path = os.path.join(".", "total_pickle_photocatalysis", "photo_excel.pkl")
         with open(pickle_path, 'wb') as file:
             pickle.dump(df, file)
-        # upload_or_replace_file("photo_excel.pkl", pickle_path, "application/octet-stream", dir_dict["total_pickle_photocatalysis"])
+        upload_or_replace_file("photo_excel.pkl", pickle_path, "application/octet-stream",
+                               dir_dict["total_pickle_photocatalysis"])
 
 
 def check_and_update_time():
@@ -1106,7 +1133,7 @@ def count_uploading_data_within_time_range(t_df, start_time, end_time):
     return count
 
 
-def get_expected_reactions(thermo, photo):
+def get_expected_reactions(thermo, photo) -> dict:
     if thermo:
         return column_title_dict["thermo"]
     elif photo:
@@ -1121,8 +1148,10 @@ if __name__ == "__main__":
 
     reaction_name, mag_flag, thermo_flag, sea_flag, photo_flag = streamlit_frame()
     total_dic = get_total_excel(thermo_flag, photo_flag)
-    doi_database = get_doi_db(total_dic)
+    # st.write(total_dic["ORR"]["DOI"])
+    doi_database = get_doi_db(total_dic) # 当前flag下，存在的所有doi
     expected_reactions = get_expected_reactions(thermo_flag, photo_flag)
+    current_df = total_dic[sheet_dict[reaction_name]]
 
     st.markdown("---")
     cwd = os.getcwd()
@@ -1131,9 +1160,10 @@ if __name__ == "__main__":
     # col1, col2 = st.columns(2)
 
     yaml_file_path = os.path.join(cwd, "user.yaml")
-    # file_from_gdrive(dir_dict["user"], "user.yaml", init_drive_client(), yaml_file_path)
-    # login_result = login(yaml_file = os.path.join(cwd, "user.yaml"))
-    login_result = login("./user.yaml")
+    if not os.path.exists(yaml_file_path):
+        file_from_gdrive(dir_dict["user"], "user.yaml", init_drive_client(), yaml_file_path)
+    login_result = login(yaml_file=os.path.join(cwd, "user.yaml"))
+    # login_result = login("./user.yaml")
 
     if login_result is not None:
         authentication_status, name, username, institute = login_result
@@ -1168,6 +1198,8 @@ if __name__ == "__main__":
                     </span> using the form on the left sidebar.
                     </div>
                 """, unsafe_allow_html=True)
+
+
         welcome()
 
     admin = ["tohokudizhang"]
@@ -1186,15 +1218,15 @@ if __name__ == "__main__":
             jan_1 = mydt.date(today.year, 1, 1)
             dec_31 = mydt.date(today.year, 12, 31)
             d = st.date_input(
-                    "Select the date range",
-                    (mydt.date(today.year, today.month, 1), mydt.date(today.year, today.month, today.day)),
-                    jan_1,
-                    dec_31,
-                    format="MM.DD.YYYY",
-                )
+                "Select the date range",
+                (mydt.date(today.year, today.month, 1), mydt.date(today.year, today.month, today.day)),
+                jan_1,
+                dec_31,
+                format="MM.DD.YYYY",
+            )
             if st.button("Count Data"):
                 total_df = get_total_excel(thermo_flag, photo_flag)
-                count_uploading_data_within_time_range(total_df, str(d[0]) +" 00:00:00", str(d[1]) +" 00:00:00")
+                count_uploading_data_within_time_range(total_df, str(d[0]) + " 00:00:00", str(d[1]) + " 00:00:00")
             if st.sidebar.button("clean electro pickle"):
                 if os.path.exists(os.path.join(".", "total_excel", "total.pkl")):
                     os.remove(os.path.join(".", "total_excel", "total.pkl"))
@@ -1208,9 +1240,10 @@ if __name__ == "__main__":
             st.session_state["modify_data"] = True
 
         if st.session_state["modify_data"]:
-            extract_and_modify_data(sheet_dict[reaction_name], name, username, institute, thermo_flag, photo_flag, admin = admin, admin_key = admin_key, admin_value =admin_value)
+            extract_and_modify_data(sheet_dict[reaction_name], name, username, institute, thermo_flag, photo_flag,
+                                    admin=admin, admin_key=admin_key, admin_value=admin_value)
         else:
-            #df = read_excel_data(excel_file_name, sheet_name=reaction_name)
+            # df = read_excel_data(excel_file_name, sheet_name=reaction_name)
             with st.container():
                 col1, col2 = st.columns(2)
                 with col1:
@@ -1222,7 +1255,7 @@ if __name__ == "__main__":
                         doi_input = doi_input.lstrip("https://doi.org/ ")
                     elif not bool(re.match(r'^\d', doi_input)):
                         st.markdown(":red[**doi not valid**]")
-                    #st.markdown('**Note**: Please click "Check" to update the status after each doi change.')
+                    # st.markdown('**Note**: Please click "Check" to update the status after each doi change.')
                     if 'doi_clicked' not in st.session_state:
                         st.session_state.doi_clicked = False
 
@@ -1244,7 +1277,7 @@ if __name__ == "__main__":
                     if 'unpublished button' not in st.session_state:
                         st.session_state['unpublished button'] = False
 
-                    #st.markdown("##### Please check for duplicates：")
+                    # st.markdown("##### Please check for duplicates：")
                     if doi_input == "":
                         st.markdown('Please fill in the doi')
                     elif (st.session_state.doi == False and doi_input != "") or (
@@ -1253,7 +1286,8 @@ if __name__ == "__main__":
                     elif st.session_state.doi is None and doi_input != "":
                         st.markdown('This paper :red[**is in**] the database')
                         st.session_state.doi = False
-                    elif (st.session_state.doi == doi_input and st.session_state.doi != None and st.session_state["checked_reaction"] == reaction_name):
+                    elif (st.session_state.doi == doi_input and st.session_state.doi != None and st.session_state[
+                        "checked_reaction"] == reaction_name):
                         st.markdown('This paper :red[**is not**] in the database')
                         with col2:
                             st.markdown("##### Please upload the pdf：")
@@ -1261,26 +1295,25 @@ if __name__ == "__main__":
                             si_flag = st.checkbox("Please tick it if uploading the Supplementary Information (SI)")
                             si_button = st.button("Upload")
                             if si_button and uploaded_file is not None:
-                                # drive_client = init_drive_client()
-                                # if not si_flag:
-                                #     uploaded_file.name = f"{st.session_state.doi}.pdf"
-                                # else:
-                                #     uploaded_file.name = f"{st.session_state.doi}_si.pdf"
-                                # if thermo_flag:
-                                #     st_upload_file_to_drive(uploaded_file, dir_dict["pdfs_thermocatalysis"], drive_client)
-                                # elif photo_flag:
-                                #     st_upload_file_to_drive(uploaded_file, dir_dict["pdfs_photocatalysis"], drive_client)
-                                # else:
-                                #     st_upload_file_to_drive(uploaded_file, dir_dict["pdfs"], drive_client)
+                                drive_client = init_drive_client()
+                                if not si_flag:
+                                    uploaded_file.name = f"{st.session_state.doi}.pdf"
+                                else:
+                                    uploaded_file.name = f"{st.session_state.doi}_si.pdf"
+                                if thermo_flag:
+                                    st_upload_file_to_drive(uploaded_file, dir_dict["pdfs_thermocatalysis"], drive_client)
+                                elif photo_flag:
+                                    st_upload_file_to_drive(uploaded_file, dir_dict["pdfs_photocatalysis"], drive_client)
+                                else:
+                                    st_upload_file_to_drive(uploaded_file, dir_dict["pdfs"], drive_client)
                                 st.success('File has been uploaded!')
                             elif si_button and uploaded_file is None:
                                 st.error("Please add a file to upload.")
 
-                    #st.write('The current doi is:', st.session_state.doi)
+                    # st.write('The current doi is:', st.session_state.doi)
                     if st.button("Need to upload unpublished works? Please click here"):
                         st.session_state['unpublished button'] = True
                         st.session_state.doi = "Unpublished"
-
 
                 # data submission
                 if (st.session_state.doi == doi_input and st.session_state.doi != None and st.session_state["checked_reaction"] == reaction_name) or st.session_state['unpublished button']:
@@ -1292,16 +1325,16 @@ if __name__ == "__main__":
                     type_col1, type_col2 = st.columns(2)
                     with type_col1:
                         main_category = st.selectbox("Main category", (
-                                            "Platinum/Precious_Group_Metal",
-                                            "Metal/Alloy",
-                                            "Metal_C/N/O/HO/F/S/P-ides",
-                                            "Metal-Nitrogen-Carbon(CNT/graphene)",
-                                            "2D_materials",
-                                            "Perovskite",
-                                            "Others"
-                                            ), label_visibility = "visible")
-                        new_df["Type"] =  main_category
-                        #st.write(new_df["Type"])
+                            "Platinum/Precious_Group_Metal",
+                            "Metal/Alloy",
+                            "Metal_C/N/O/HO/F/S/P-ides",
+                            "Metal-Nitrogen-Carbon(CNT/graphene)",
+                            "2D_materials",
+                            "Perovskite",
+                            "Others"
+                        ), label_visibility="visible")
+                        new_df["Type"] = main_category
+                        # st.write(new_df["Type"])
                     with type_col2:
                         if len(subcategory_dict(main_category)) > 0:
                             subcategory = st.selectbox("Subcategory", subcategory_dict(main_category), label_visibility = "visible")
@@ -1319,8 +1352,9 @@ if __name__ == "__main__":
                                         st.write(value)
                                         results = st.text_input(' ', "", key=key, label_visibility="collapsed")
                                     with costum_unit:
-                                        costum_unit_flag = st.checkbox('Custom unit', key = key+"check_unit")
-                                        costum_unit_result = st.text_input(' ', "", key= key+"unit", label_visibility="collapsed")
+                                        costum_unit_flag = st.checkbox('Custom unit', key=key + "check_unit")
+                                        costum_unit_result = st.text_input(' ', "", key=key + "unit",
+                                                                           label_visibility="collapsed")
                                         if costum_unit_result == "" and costum_unit_flag:
                                             st.error("Please fill in the costum unit.")
                                         elif costum_unit_result != "" and costum_unit_flag:
@@ -1339,52 +1373,61 @@ if __name__ == "__main__":
                                     st.write(value)
                                     results = st.text_input(' ', "", key=key, label_visibility="collapsed")
                                     st.write("If there are multiple units of different component ratios:")
-                                    results_more = st.text_input(' ', "", key=key + "content_more", label_visibility="collapsed")
+                                    results_more = st.text_input(' ', "", key=key + "content_more",
+                                                                 label_visibility="collapsed")
                                 with ratio_col2:
                                     "Slelect mass ratio (wt.%) or atomic ratio (at.%)"
-                                    ratio_option = st.selectbox(' ', ('at.%', 'wt.%', "mmol", "mg"), label_visibility="collapsed")
+                                    ratio_option = st.selectbox(' ', ('at.%', 'wt.%', "mmol", "mg"),
+                                                                label_visibility="collapsed")
                                     st.write("Multiple units of component ratios:")
-                                    ratio_option_more = st.selectbox(' ', ('at.%', 'wt.%', "mmol", "mg"),key = "content_more", label_visibility="collapsed")
+                                    ratio_option_more = st.selectbox(' ', ('at.%', 'wt.%', "mmol", "mg"),
+                                                                     key="content_more", label_visibility="collapsed")
 
-                                results = results + " "+ ratio_option + ";" + results_more + " " + ratio_option_more
-            # special treatment
+                                results = results + " " + ratio_option + ";" + results_more + " " + ratio_option_more
+                            # special treatment
                             elif special_metric(reaction_name, key):
                                 c_index += 1
                                 st.markdown(f"##### {c_index}. Please select {key}：")
                                 if reaction_name == "Carbon Dioxide Reduction":
                                     if key == "Main product":
-                                        CO2RR_main_product = st.selectbox(' ', ('Acetate', 'Carbon monoxide(CO)',"Methanal(CH2O)",
-                                                                                'Formate', 'Ethylene(C2H4)', 'Ethanol(CH3CH2OH)','Ethanal',
-                                                                                'Methanol', "Methane(CH4)", "Hydrogen(H2)", "Ethane (C2H6)", "C3 products",
-                                                                                ), label_visibility="collapsed")
+                                        CO2RR_main_product = st.selectbox(' ', (
+                                            'Acetate', 'Carbon monoxide(CO)', "Methanal(CH2O)",
+                                            'Formate', 'Ethylene(C2H4)', 'Ethanol(CH3CH2OH)', 'Ethanal',
+                                            'Methanol', "Methane(CH4)", "Hydrogen(H2)", "Ethane (C2H6)", "C3 products",
+                                        ), label_visibility="collapsed")
                                         results = CO2RR_main_product
                                     elif key == "Other product (FE > 10%)":
-                                        CO2RR_other_product = st.multiselect(' ', ('Acetate', 'Carbon monoxide(CO)',"Methanal(CH2O)",
-                                                                                'Formate', 'Ethylene(C2H4)', 'Ethanol(CH3CH2OH)','Ethanal',
-                                                                                'Methanol', "Methane(CH4)", "Hydrogen(H2)","Ethane (C2H6)","C3 products","NA",
-                                                                                ), label_visibility="collapsed")
+                                        CO2RR_other_product = st.multiselect(' ', (
+                                            'Acetate', 'Carbon monoxide(CO)', "Methanal(CH2O)",
+                                            'Formate', 'Ethylene(C2H4)', 'Ethanol(CH3CH2OH)', 'Ethanal',
+                                            'Methanol', "Methane(CH4)", "Hydrogen(H2)", "Ethane (C2H6)", "C3 products",
+                                            "NA",
+                                        ), label_visibility="collapsed")
                                         results = ";".join(CO2RR_other_product)
                                 elif reaction_name == "Carbon Dioxide Reduction":
                                     if key == "Main product":
-                                        CORR_main_product = st.selectbox(' ', ('Acetate', 'Carbon monoxide(CO)', "Methanal(CH2O)",
-                                                                                'Formate', 'Ethylene(C2H4)', 'Ethanol(CH3CH2OH)','Ethanal',
-                                                                                'Methanol', "Methane(CH4)", "Hydrogen(H2)", "Ethane (C2H6)", "C3 products",
-                                                                                ), label_visibility="collapsed")
+                                        CORR_main_product = st.selectbox(' ', (
+                                            'Acetate', 'Carbon monoxide(CO)', "Methanal(CH2O)",
+                                            'Formate', 'Ethylene(C2H4)', 'Ethanol(CH3CH2OH)', 'Ethanal',
+                                            'Methanol', "Methane(CH4)", "Hydrogen(H2)", "Ethane (C2H6)", "C3 products",
+                                        ), label_visibility="collapsed")
                                         results = CORR_main_product
                                     elif key == "Other product (FE > 10%)":
-                                        CORR_other_product = st.multiselect(' ', ('Acetate', 'Carbon monoxide(CO)',"Methanal(CH2O)",
-                                                                                'Formate', 'Ethylene(C2H4)', 'Ethanol(CH3CH2OH)','Ethanal',
-                                                                                'Methanol', "Methane(CH4)", "Hydrogen(H2)","Ethane (C2H6)","C3 products","NA",
-                                                                                ), label_visibility="collapsed")
+                                        CORR_other_product = st.multiselect(' ', (
+                                            'Acetate', 'Carbon monoxide(CO)', "Methanal(CH2O)",
+                                            'Formate', 'Ethylene(C2H4)', 'Ethanol(CH3CH2OH)', 'Ethanal',
+                                            'Methanol', "Methane(CH4)", "Hydrogen(H2)", "Ethane (C2H6)", "C3 products",
+                                            "NA",
+                                        ), label_visibility="collapsed")
                                         results = ";".join(CORR_other_product)
                                 elif reaction_name == "Ammonia Synthesis":
                                     if key == "Isotope labeling":
                                         results = st.radio(
                                             "Are isotope labelling experiments performed?",
-                                            ["yes", "no"],)
+                                            ["yes", "no"], )
                                     elif key == "Reactant":
                                         results = st.selectbox(' ', ('N2', 'NO/NO2/NO3', "NO3-/NO2-/NO-"
-                                                            ), label_visibility="collapsed")
+                                                                     ), label_visibility="collapsed")
                                 elif reaction_name == "Epoxide Production":
                                     if key == "Main product":
                                         results = st.selectbox(' ', ('cyclooctene oxide',
@@ -1396,35 +1439,33 @@ if __name__ == "__main__":
                                                                      'propyiene glycol',
                                                                      'acetone',
 
-                                                           ), label_visibility="collapsed")
+                                                                     ), label_visibility="collapsed")
                                 elif reaction_name == "Nitrogen Oxidation Reaction":
                                     if key == "Main product":
                                         results = st.selectbox(' ', ('NO3-', 'NO2-', 'NO-'
-                                                            ), label_visibility="collapsed")
+                                                                     ), label_visibility="collapsed")
                                         st.write()
                                 elif reaction_name == "NH3 Oxidation Reaction":
                                     if key == "Main product":
                                         results = st.selectbox(' ', ('N2', 'N2O',
-                                                            ), label_visibility="collapsed")
+                                                                     ), label_visibility="collapsed")
                                         st.write()
-                                elif reaction_name =="Urea Oxidation Reaction":
+                                elif reaction_name == "Urea Oxidation Reaction":
                                     if key == "Main product":
                                         urea_product = st.multiselect(' ', ('N2', 'NO-',
-                                                                                'NO2-', 'NO3-', 'CO2',
-                                                                                'CO'
-                                                                                ), label_visibility="collapsed")
+                                                                            'NO2-', 'NO3-', 'CO2',
+                                                                            'CO'
+                                                                            ), label_visibility="collapsed")
                                         results = ";".join(urea_product)
                             if key != "Type":
-                                new_df[key] =  results
+                                new_df[key] = results
 
-
-
-                        #st.markdown("##### Please enter the username：")
-                        #username = st.text_input('Please always use the same username to accumulate credits.', "e.g. xuan wang", label_visibility="visible")
+                        # st.markdown("##### Please enter the username：")
+                        # username = st.text_input('Please always use the same username to accumulate credits.', "e.g. xuan wang", label_visibility="visible")
                         new_df["Name"] = username
                         new_df["Institute"] = institute
                         new_df["Uploading data"] = pd.Timestamp(datetime.now())
-                        _, sub_col1,sub_col2,sub_col3,_  = st.columns(5)
+                        _, sub_col1, sub_col2, sub_col3, _ = st.columns(5)
                         with sub_col1:
                             save_button = st.form_submit_button(label='Save & preview')
                         with sub_col3:
@@ -1459,13 +1500,18 @@ if __name__ == "__main__":
                         if not error_flag:
                             new_df = pd.DataFrame([new_df])
                             total_df = get_total_excel(thermo_flag, photo_flag)
-                            total_df[sheet_dict[reaction_name]] = pd.concat([total_df[sheet_dict[reaction_name]], new_df], ignore_index=True)
+                            total_df[sheet_dict[reaction_name]] = pd.concat(
+                                [total_df[sheet_dict[reaction_name]], new_df], ignore_index=True)
                             if check_and_update_time():
                                 write_total_pickle_upload(total_df, thermo_flag, photo_flag)
                                 st.success('Data has been submitted!')
-                                st.warning('Please make sure that all data for each paper is submitted before returning to the DOI check to verify that the article is in the database.')
+                                st.warning(
+                                    'Please make sure that all data for each paper is submitted before returning to the DOI check to verify that the article is in the database.')
                             else:
                                 st.error('System busy, upload has failed, please try again after 10 seconds!')
+            for i in range(6):
+                st.write("\n")
+            # 以下为通过Excel批量上传的代码
             with st.container():
                 def upload_cur_df(df, reaction_name):
                     print("---------------------")
@@ -1476,19 +1522,26 @@ if __name__ == "__main__":
                     try:
                         # print(reaction_name)
                         # print(sheet_dict[reaction_name])
-                        # print(total_df['OER'].shape)
+                        # print(total_dic['OER'].shape)
                         df["DOI"] = df["DOI"].str.strip()
                         total_dic[sheet_dict[reaction_name]] = pd.concat([total_dic[sheet_dict[reaction_name]], df],
-                                                                        ignore_index=True)
-                        write_total_pickle_upload(total_dic, thermo_flag, photo_flag)
+                                                                         ignore_index=True)
+                        if check_and_update_time():
+                            write_total_pickle_upload(total_dic, thermo_flag, photo_flag)
+                        else:
+                            st.error('System busy, upload has failed, please try again after 10 seconds!')
+                        # st.write(total_dic[sheet_dict[reaction_name]])
                         return True
                     except Exception as e:
                         print(e)
                         return False
+
+
                 col1, col2 = st.columns([2, 1])
                 with col1:
                     st.markdown("### Upload by Excel")
-                    uploaded_excel = st.file_uploader(label="Please upload the file according to the template", type=['xlsx'])
+                    uploaded_excel = st.file_uploader(label="Please upload the file according to the template",
+                                                      type=['xlsx'])
                 with col2:
                     st.markdown("### Download template here")
                     st.caption("please choose the reaction type first")
@@ -1517,13 +1570,16 @@ if __name__ == "__main__":
                     for sheetname in sheetnames:
                         # 此处为判断excel的sheetname是否能匹配上reaction name
                         if sheetname not in expected_reactions:
-                            st.markdown(f"<span style='color:red;'>Reaction name '{sheetname}' mismatch the catalysis type.</span>", unsafe_allow_html=True)
+                            st.markdown(
+                                f"<span style='color:red;'>Reaction name '{sheetname}' mismatch the catalysis type.</span>",
+                                unsafe_allow_html=True)
                             continue
                         # 反应名对应的列名
                         cur_df = pd.read_excel(uploaded_excel, sheet_name=sheetname, dtype=str)
                         # 调用函数，返回错误列表
                         expected_columns = expected_reactions.get(sheetname, {}).keys()
-                        errors, styles, doi_ls, df_to_upload = collect_errors_and_styles(cur_df, expected_columns, sheetname, doi_database)
+                        errors, styles, doi_ls, df_to_upload = collect_errors_and_styles(cur_df, expected_columns,
+                                                                                         sheetname, doi_database)
                         if not df_to_upload.empty:
                             with st.container(border=True):
                                 col1, col2 = st.columns(2)
@@ -1541,13 +1597,14 @@ if __name__ == "__main__":
                                     else:
                                         if st.button(label="submit", key=f"inner_submit_{sheetname}"):
                                             if upload_cur_df(df_to_upload, sheetname):
-                                                st.success("Success")
+                                                st.success("Uploaded successfully!")
+                                                st.rerun()
                                             else:
                                                 st.error("Reaction type mismatched ")
 
                                 with col2:
                                     # 标题
-                                    st.markdown(f"#### Upload your DOI here")
+                                    st.markdown("#### Upload your DOI here")
                                     # 使用 st.session_state 缓存 df_doi（此处为doi检查表功能，尚不完善）
                                     # if f"df_doi_{sheetname}" not in st.session_state:
                                     #     # 初始化时将 IsUploaded 设置为 False
@@ -1561,27 +1618,370 @@ if __name__ == "__main__":
                                     with st.form(key=f"upload_form_{sheetname}"):
                                         selected_doi = st.selectbox("Select a DOI to Upload", doi_ls)
                                         uploaded_doi = st.file_uploader("Upload your PDF file", type=['pdf'])
+                                        si_flag = st.checkbox("Please tick it if uploading the Supplementary Information(SI)")
                                         submitted = st.form_submit_button("Submit")
                                     # 如果表单提交了并且上传了文件
                                     if submitted:
                                         if uploaded_doi is not None and selected_doi is not None:
                                             # 使用 selectbox 中选择的 DOI 名称作为文件名
-                                            new_file_name = f"{selected_doi}.pdf"
-                                            st.success(f"File uploaded will be renamed to '{new_file_name}' and matches DOI '{selected_doi}' in the list!")
-                                            # df_doi.loc[df_doi["DOIs"] == selected_doi, "IsUploaded"] = True
-                                            # 在这里进行上传逻辑，例如上传到 Google Drive 或其他存储
-                                            # upload_or_replace_file(new_file_name, filepath, mimetype, dir_dict[pdfs], drive_client)
-                                            st.success("File renamed and uploaded successfully!")
+                                            # new_file_name = f"{selected_doi}.pdf"
+                                            drive_client = init_drive_client()
+                                            if si_flag:
+                                                uploaded_doi.name = f"{selected_doi}_si.pdf"
+                                            else:
+                                                uploaded_doi.name = f"{selected_doi}.pdf"
+                                            if thermo_flag:
+                                                st_upload_file_to_drive(uploaded_doi, dir_dict["pdfs_thermocatalysis"],
+                                                                        drive_client)
+                                            elif photo_flag:
+                                                st_upload_file_to_drive(uploaded_doi, dir_dict["pdfs_photocatalysis"],
+                                                                        drive_client)
+                                            else:
+                                                st_upload_file_to_drive(uploaded_doi, dir_dict["pdfs"], drive_client)
+                                            st.success('File has been uploaded!')
+                                            # st.success("File renamed and uploaded successfully!")
                                         else:
                                             st.error("No file was uploaded. Please upload a PDF file.")
                                     # 此处为doi检查表格功能，尚不完善
                                     # st.write("Check Updated DOI here:")
                                     # st.dataframe(df_doi, use_container_width=True)
-                        else:
-                            st.markdown(f"<span style='color:blue;'>After removing duplicate DOIs, reaction {sheetname} has no content.</span>", unsafe_allow_html=True)
+                        elif reaction_name == sheetname:
+                            st.markdown(
+                                f"<span style='color:blue;'>After removing duplicate DOIs, reaction {sheetname} has no content.</span>",
+                                unsafe_allow_html=True)
 
                 else:
                     st.write("Please upload an Excel file to see the data.")
+
+            st.divider()
+
+            # 上传结构数据
+            with st.container():
+                experimental_data_path = os.path.join(cwd + "/computational_data/experimental_data.pkl")
+                if not os.path.exists(experimental_data_path):
+                    file_from_gdrive(dir_dict["computational_data"], "experimental_data.pkl", init_drive_client(), experimental_data_path)
+                with open(experimental_data_path, "rb") as f:
+                    total_exp_dic = pickle.load(f)
+                    exp_df = total_exp_dic[reaction_name]
+                experiment_dois = exp_df["DOI"].unique() # 所有
+                # st.write(experiment_dois)
+                st.markdown("### Upload Structure")
+                select_upload_type = st.radio(
+                    "Choose one:",
+                    ('Experimental', 'Computational')
+                )
+                if select_upload_type == "Experimental":
+                    with st.container(border=True):
+                        doi_in = st.text_input("Please enter your doi", value="10.xxxx/xxxx").strip()
+                        st.divider()
+
+                        if not is_valid_doi(doi_in):
+                            st.error("Please enter a valid DOI.")
+                        else:
+                            if doi_in is not None and doi_in in doi_database:
+                                with st.container():
+                                    _col1, _col2 = st.columns(2)
+                                with _col1:
+                                    select_formula = st.selectbox(label="Choose a Formula",
+                                                                  options=current_df[current_df["DOI"] == doi_in]["Formula"].unique())
+                                err = uploadStruc.is_doi_name_match(doi_in, name, select_upload_type, reaction_name)
+                                if doi_in in experiment_dois:
+                                    if err is not None:
+                                        st.error(err)
+                                    else:
+                                        with _col1:
+                                            st.dataframe(exp_df[(exp_df["Uploader"] == name) & (exp_df["DOI"] == doi_in)])
+                                if doi_in not in experiment_dois or err is None:
+
+                                    with _col2:
+                                        select_file_type = st.selectbox(label="Choose a file type",
+                                                                        options=["CONTCAR", "CIF", "XYZ"])
+                                        formula_struc_file = st.file_uploader(
+                                            label="Upload your structure file (contcar, cif, xyz)",
+                                            type=None)
+                                        submit_button = st.button(f"Submit substrate Data and {select_file_type} File",)
+                                        if submit_button:
+                                            err = uploadStruc.upload_struc_file(select_file_type, doi_in,
+                                                                                formula_struc_file, select_formula)
+                                            if err is None:
+                                                df = uploadStruc.upload_struc_data(exp_df,
+                                                                                   select_formula,
+                                                                                   doi_in,
+                                                                                   name)
+                                                total_exp_dic[reaction_name] = df
+                                                with open("./computational_data/experimental_data.pkl", "wb") as f:
+                                                    pickle.dump(total_exp_dic, f)
+                                                    upload_or_replace_file("experimental_data.pkl",
+                                                                           "./computational_data/experimental_data.pkl",
+                                                                           "application/octet-stream",
+                                                                           dir_dict["computational_data"])
+                                                st.success("Uploaded successfully!")
+                                            else:
+                                                st.error(err)
+                                    with st.container():  # 吸附物部分
+                                        adsorbates = adsorbate_dic.get(reaction_name, [])
+                                        # with st.form(key=f"{select_formula}_ads_file_upload"):
+                                        _col1, _col2, _col3 = st.columns([3, 3, 4])
+                                        with _col1:
+                                            if not adsorbates:
+                                                select_adsorbate = st.text_input("Please enter your adsorbate_dic",)
+                                            else:
+                                                select_adsorbate = st.selectbox(label="Choose an adsorbate_dic",
+                                                                            options=adsorbates)
+                                        with _col2:
+                                            energy_ads = st.number_input(label="Input energy of adsorbate_dic", )
+                                            select_file_type = st.selectbox(label="Choose a file type",
+                                                                            options=["CONTCAR", "CIF", "XYZ"],
+                                                                            key=f"ads_file_type")
+                                        with _col3:
+                                            adsorbate_file = st.file_uploader(
+                                                label="Upload your adsorbate_dic file (contcar, cif, xyz)",
+                                                type=None)
+                                        with _col1:
+                                            # submit_button = st.form_submit_button(
+                                            #     f"Submit substrate with {select_adsorbate} Data and {select_file_type} file", )
+                                            submit_button = st.button(f"Submit substrate with {select_adsorbate} Data and {select_file_type} file",)
+                                        if submit_button:
+                                            # 上传文件
+                                            err = uploadStruc.upload_struc_file(select_file_type, doi_in,
+                                                                                adsorbate_file, select_formula,
+                                                                                select_adsorbate)
+                                            if err is None:
+                                                # 上传数据
+                                                df = uploadStruc.upload_struc_data(exp_df,
+                                                                                   select_formula,
+                                                                                   doi_in,
+                                                                                   name,
+                                                                                   select_adsorbate,
+                                                                                   energy_ads)
+                                                total_exp_dic[reaction_name] = df
+                                                with open("./computational_data/experimental_data.pkl", "wb") as f:
+                                                    pickle.dump(total_exp_dic, f)
+                                                    upload_or_replace_file("experimental_data.pkl",
+                                                                           "./computational_data/experimental_data.pkl",
+                                                                           "application/octet-stream",
+                                                                           dir_dict["computational_data"])
+                                                st.success("Uploaded successfully!")
+                                            else:
+                                                st.error(err)
+                                    st.divider()
+                                    with st.container():  # 输入文件部分
+                                        st.markdown("#### Upload INCAR OR KPOINTS File here")
+                                        incar_file = st.file_uploader("Upload your INCAR/KPOINTS file", )
+                                        incar_submit_button = st.button(label="Submit",
+                                                                        key=f"{select_formula}_IK_file_upload", )
+                                        if incar_submit_button and incar_file is not None:
+                                            err = uploadStruc.upload_INCAR_KPOINTS_file(doi_in, incar_file)
+                                            if err is None:
+                                                st.success("Uploaded successfully!")
+                                            else:
+                                                st.error(err)
+                            else:
+                                st.error("No Experimental Data Exist! Please Upload Experimental Data Above")
+
+                elif select_upload_type == "Computational":
+                    with open("./computational_data/computational_data.pkl", "rb") as f:
+                        total_computational_dic = pickle.load(f)
+                        computational_df = total_computational_dic[reaction_name]
+                    computational_dois = computational_df["DOI"].unique()
+                    with st.container(border=True): # 输入DOI
+                        doi_in = st.text_input("Please enter your doi", value="10.xxxx/xxxx").strip()
+                        st.divider()
+
+                        if not is_valid_doi(doi_in):
+                            st.error("Please enter a valid DOI.")
+                        else:
+                            with st.container():  # 上传化学式对应的结构文件
+                                _col1, _col2 = st.columns(2)
+                            with _col1:
+                                input_formula = st.text_input(label="Input a Formula", )
+                            err = uploadStruc.is_doi_name_match(doi_in, name, select_upload_type, reaction_name)
+                            if doi_in in computational_dois:
+                                if err is not None:
+                                    st.error(err)
+                                else:
+                                    with _col1:
+                                        st.dataframe(computational_df[(computational_df["Uploader"] == name) & (computational_df["DOI"] == doi_in)])
+                            if doi_in not in computational_dois or err is None:
+                                if input_formula.strip():
+                                    with _col2:
+                                        select_file_type = st.selectbox(label="Choose a file type",
+                                                                        options=["CONTCAR", "CIF", "XYZ"],
+                                                                        key=f"{input_formula}_file_type")
+                                        formula_struc_file = st.file_uploader(
+                                            label="Upload your structure file (contcar, cif, xyz)",
+                                            type=None)
+                                        submit_button = st.button(f"Submit substrate Data and {select_file_type} file",
+                                                                  key=f"{input_formula}_submit_button")
+                                    if submit_button:
+                                        err = uploadStruc.upload_struc_file(select_file_type, doi_in, formula_struc_file, input_formula)
+                                        if err is None:
+                                            df = uploadStruc.upload_struc_data(computational_df, input_formula, doi_in, name)
+                                            total_computational_dic[reaction_name] = df
+                                            with open("./computational_data/computational_data.pkl", "wb") as f:
+                                                pickle.dump(total_computational_dic, f)
+                                                upload_or_replace_file("computational_data.pkl",
+                                                                       "./computational_data/computational_data.pkl",
+                                                                       "application/octet-stream",
+                                                                       dir_dict["computational_data"])
+                                            st.success("Uploaded successfully!")
+                                        else:
+                                            st.error(err)
+                                    with st.container(): # 吸附物数据
+                                        adsorbates = adsorbate_dic.get(reaction_name, [])
+                                        with st.form(key=f"{reaction_name}_ads_file_upload"):
+                                            _col1, _col2, _col3 = st.columns([3, 3, 4])
+                                        with _col1:
+                                            if not adsorbates:
+                                                select_adsorbate = st.text_input("Please input adsorbate_dic", key=f"{reaction_name}_ads")
+                                            else:
+                                                select_adsorbate = st.selectbox(label="Choose an adsorbate_dic",
+                                                                                options=adsorbates)
+                                            # submit_button = st.form_submit_button(f"Submit substrate with {select_adsorbate} Data and {select_file_type} file",)
+                                            submit_button = st.form_submit_button(f"Submit substrate with adsorbate_dic Data and file",)
+
+                                        with _col2:
+                                            energy_ads = st.number_input(label="Input energy of adsorbate_dic", )
+                                            select_file_type = st.selectbox(label="Choose a file type",
+                                                                            options=["CONTCAR", "CIF", "XYZ"],
+                                                                            key=f"{select_adsorbate}_file_type")
+                                        with _col3:
+                                            adsorbate_file = st.file_uploader(
+                                                label="Upload your adsorbate_dic file (contcar, cif, xyz)",
+                                                type=None)
+                                        if submit_button:
+                                            err = uploadStruc.upload_struc_file(select_file_type, doi_in,
+                                                                                adsorbate_file, input_formula,
+                                                                                select_adsorbate)
+                                            if err is None:
+                                                df = uploadStruc.upload_struc_data(computational_df, input_formula,
+                                                                                   doi_in, name, select_adsorbate,
+                                                                                   energy_ads)
+                                                total_computational_dic[reaction_name] = df
+                                                with open("./computational_data/computational_data.pkl", "wb") as f:
+                                                    pickle.dump(total_computational_dic, f)
+                                                    upload_or_replace_file("computational_data.pkl",
+                                                                           "./computational_data/computational_data.pkl",
+                                                                           "application/octet-stream",
+                                                                           dir_dict["computational_data"])
+                                                st.success("Uploaded successfully!")
+                                            else:
+                                                st.error(err)
+                                    with st.container(): # 输入文件上传
+                                        st.markdown("#### Upload INCAR OR KPOINTS File here")
+                                        incar_file = st.file_uploader("Upload your INCAR/KPOINTS file", )
+                                        incar_submit_button = st.button(label="Submit", key=f"{input_formula}_IK_file_upload",)
+                                        if incar_submit_button:
+                                            if incar_file is not None:
+                                                err = uploadStruc.upload_INCAR_KPOINTS_file(doi_in, incar_file)
+                                                if err is None:
+                                                    st.success("Uploaded successfully!")
+
+                                                else:
+                                                    st.error(err)
+                                            else:
+                                                st.error("Upload a file first")
+                                else:
+                                    st.error("Please enter a Formula first")
+
+                    # with st.container():
+                    #     st.markdown("### Upload Computational Data by ZIP")
+                    #     select_upload_type = st.radio(
+                    #         "Choose one:",
+                    #         ('Computational Structures(without adsorption free energies)',
+                    #          'Computational Structures(including adsorption free energies)')
+                    #     )
+                    #     # TODO 考虑是否添加到Google Drive
+                    #     if select_upload_type == "Computational Structures(including adsorption free energies)":
+                    #         zip_template_path = "./computational_data/template.zip"
+                    #     elif select_upload_type == "Computational Structures(without adsorption free energies)":
+                    #         zip_template_path = "./computational_data/template.zip"
+                    #     else:
+                    #         zip_template_path = None
+                    #     with open(zip_template_path, "rb") as zip_template_file:
+                    #         zip_data = zip_template_file.read()
+                    #     if zip_data:
+                    #         # 创建下载按钮
+                    #         st.download_button(
+                    #             label="Download ZIP Template",
+                    #             data=zip_data,
+                    #             file_name="template.zip",
+                    #             mime="application/zip"
+                    #         )
+                    #     else:
+                    #         st.error("ZIP file not found.")
+                    #     zip_file = st.file_uploader("Upload ZIP here", "zip")
+                    #     _col1, _col2 = st.columns(2)
+                    #     if zip_file is not None:
+                    #         if select_upload_type == "Computational Structures(including adsorption free energies)":
+                    #             with _col1:
+                    #                 __col1, __col2 = st.columns(2)
+                    #             with __col1:
+                    #                 check_toggle = st.toggle("Check and Show Your Data")
+                    #             if check_toggle:
+                    #                 # 调用后端函数处理
+                    #                 err, invalid_doi, unmatched_doi, valid_entries, checked_files, infos = uploadStrucbyZIP.handle_uploaded_file(
+                    #                     zip_file, select_upload_type, name, reaction_name)
+                    #                 if err:
+                    #                     with _col1:
+                    #                         st.error(err)
+                    #                 else:
+                    #                     with _col1:
+                    #                         for err_name in infos.keys():
+                    #                             with st.expander(f"{err_name.upper()}_ERR", expanded=True):
+                    #                                 if infos[err_name]:
+                    #                                     st.write(infos[err_name])
+                    #                     if not invalid_doi.empty:
+                    #                         with _col1:
+                    #                             st.error(f"You uploaded Invalid DOI: {invalid_doi['DOI'].unique()}")
+                    #                     if not unmatched_doi.empty:
+                    #                         with _col1:
+                    #                             st.error(
+                    #                                 f"{unmatched_doi['DOI'].unique()} has been uploaded by others")
+                    #                     if not valid_entries.empty:
+                    #                         # 展示合法的上传数据
+                    #                         st.dataframe(valid_entries)
+                    #                         with __col2:
+                    #                             # submit_button = st.button(label="Submit Data",
+                    #                             #                           disabled=(infos is not None))
+                    #                             submit_button = st.button(label="Submit Data")
+                    #                         if submit_button:
+                    #                             err = uploadStrucbyZIP.submit_data_to_file(valid_entries, reaction_name)
+                    #                             if err is None:
+                    #                                 uploadStrucbyZIP.upload_files_to_google_drive(checked_files, dir_dict)
+                    #                                 st.success("Uploaded Data successfully!")
+                    #                             else:
+                    #                                 st.error(err)
+                    #         elif select_upload_type == "Computational Structures(without adsorption free energies)":
+                    #             _, _, _, df, checked_files, infos = uploadStrucbyZIP.handle_uploaded_file(zip_file, select_upload_type, name, reaction_name)
+                    #             with _col1:
+                    #                 if infos is not None:
+                    #                     for err_name in infos.keys():
+                    #                         with st.expander(f"{err_name.upper()}_ERR", expanded=True):
+                    #                             if infos[err_name]:
+                    #                                 st.write(infos[err_name])
+                    #                 __col1, __col2 = st.columns(2)
+                    #             with __col1:
+                    #                 st.dataframe(df)
+                    #             with __col2:
+                    #                 # submit_button = st.button(label="Submit Data", disabled=(infos is not None))
+                    #                 submit_button = st.button(label="Submit Data")
+                    #             if submit_button:
+                    #                 err = uploadStrucbyZIP.submit_data_to_file(df, reaction_name)
+                    #                 if err is None:
+                    #                     uploadStrucbyZIP.upload_files_to_google_drive(checked_files, dir_dict)
+                    #                     st.success("Uploaded Data successfully!")
+                    #                 else:
+                    #                     st.error(err)
+                    #     else:
+                    #         st.error("Please upload a zip file.")
+
+
+
+
+
+
+
 
 
 
