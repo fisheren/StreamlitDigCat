@@ -24,9 +24,10 @@ def upload_struc_data(df, formula, doi, uploader_name, adsorbate_type=None, adso
     condition = (df["DOI"] == doi) & (df["Formula"] == formula)
 
     if condition.any():  # 如果找到匹配的行
-        # 检查是否有该 adsorbate_type 列
+        # 如果没有吸附物，则上传的是基底数据
         if adsorbate_type is None:
-            return
+            return df
+        # 检查是否有该 adsorbate_type 列
         if adsorbate_type not in df.columns:
             df[adsorbate_type] = None  # 如果没有该列，添加此列
 
@@ -95,7 +96,7 @@ def upload_struc_file(file_type, doi, file, formula, adsorbate_name=None):
     return None
 
 
-def upload_INCAR_KPOINTS_file(doi, file, drive_service=quickstart_googledrive.init_drive_client()):
+def upload_INCAR_KPOINTS_file(doi, file, formula, drive_service=quickstart_googledrive.init_drive_client()):
     # 判断文件类型
     if is_INCAR(file):
         file_type = "INCAR"
@@ -108,7 +109,7 @@ def upload_INCAR_KPOINTS_file(doi, file, drive_service=quickstart_googledrive.in
     doi = doi.replace("/", "-")
 
     # 生成文件名
-    file_name = file_type
+    file_name = f"{file_type}_{formula}"
     file_type_folder_id = dir_dict[file_type]
     doi_folder_id = quickstart_googledrive.create_or_get_subfolder_id(drive_service, doi, file_type_folder_id)
     # 调用 upload_or_replace_file 上传或替换文件

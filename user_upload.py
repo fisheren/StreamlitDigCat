@@ -1771,7 +1771,7 @@ if __name__ == "__main__":
                                         incar_submit_button = st.button(label="Submit",
                                                                         key=f"{select_formula}_IK_file_upload", )
                                         if incar_submit_button and incar_file is not None:
-                                            err = uploadStruc.upload_INCAR_KPOINTS_file(doi_in, incar_file)
+                                            err = uploadStruc.upload_INCAR_KPOINTS_file(doi_in, incar_file, select_formula)
                                             if err is None:
                                                 st.success("Uploaded successfully!")
                                             else:
@@ -1794,7 +1794,7 @@ if __name__ == "__main__":
                             with st.container():  # 上传化学式对应的结构文件
                                 _col1, _col2 = st.columns(2)
                             with _col1:
-                                input_formula = st.text_input(label="Input a Formula", )
+                                input_formula = st.text_input(label="Input a Formula", ).strip()
                             err = uploadStruc.is_doi_name_match(doi_in, name, select_upload_type, reaction_name)
                             if doi_in in computational_dois:
                                 if err is not None:
@@ -1803,7 +1803,7 @@ if __name__ == "__main__":
                                     with _col1:
                                         st.dataframe(computational_df[(computational_df["Uploader"] == name) & (computational_df["DOI"] == doi_in)])
                             if doi_in not in computational_dois or err is None:
-                                if input_formula.strip():
+                                if input_formula:
                                     with _col2:
                                         select_file_type = st.selectbox(label="Choose a file type",
                                                                         options=["CONTCAR", "CIF", "XYZ"],
@@ -1873,7 +1873,7 @@ if __name__ == "__main__":
                                         incar_submit_button = st.button(label="Submit", key=f"{input_formula}_IK_file_upload",)
                                         if incar_submit_button:
                                             if incar_file is not None:
-                                                err = uploadStruc.upload_INCAR_KPOINTS_file(doi_in, incar_file)
+                                                err = uploadStruc.upload_INCAR_KPOINTS_file(doi_in, incar_file, input_formula,)
                                                 if err is None:
                                                     st.success("Uploaded successfully!")
 
