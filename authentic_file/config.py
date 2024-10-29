@@ -1,0 +1,1 @@
+DB_URL = "mysql+pymysql://renpeixin:renpeixin0924@localhost/digcat"
