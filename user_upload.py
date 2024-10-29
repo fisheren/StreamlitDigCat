@@ -1657,13 +1657,6 @@ if __name__ == "__main__":
 
             # 上传结构数据
             with st.container():
-                experimental_data_path = os.path.join(cwd + "/computational_data/experimental_data.pkl")
-                if not os.path.exists(experimental_data_path):
-                    file_from_gdrive(dir_dict["computational_data"], "experimental_data.pkl", init_drive_client(), experimental_data_path)
-                with open(experimental_data_path, "rb") as f:
-                    total_exp_dic = pickle.load(f)
-                    exp_df = total_exp_dic[reaction_name]
-                experiment_dois = exp_df["DOI"].unique() # 所有
                 # st.write(experiment_dois)
                 st.markdown("### Upload Structure")
                 select_upload_type = st.radio(
@@ -1671,6 +1664,15 @@ if __name__ == "__main__":
                     ('Experimental', 'Computational')
                 )
                 if select_upload_type == "Experimental":
+                    experimental_data_path = "./computational_data/experimental_data.pkl"
+                    if not os.path.exists(experimental_data_path):
+                        experimental_data_path = file_from_gdrive(dir_dict["computational_data"],
+                                                                  "experimental_data.pkl", init_drive_client(),
+                                                                  experimental_data_path)
+                    with open(experimental_data_path, "rb") as f:
+                        total_exp_dic = pickle.load(f)
+                        exp_df = total_exp_dic[reaction_name]
+                    experiment_dois = exp_df["DOI"].unique()  # 所有
                     with st.container(border=True):
                         doi_in = st.text_input("Please enter your doi", value="10.xxxx/xxxx").strip()
                         st.divider()
@@ -1678,28 +1680,30 @@ if __name__ == "__main__":
                         if not is_valid_doi(doi_in):
                             st.error("Please enter a valid DOI.")
                         else:
-                            if doi_in is not None and doi_in in doi_database:
+                            if doi_in in doi_database:
                                 with st.container():
                                     _col1, _col2 = st.columns(2)
                                 with _col1:
                                     select_formula = st.selectbox(label="Choose a Formula",
-                                                                  options=current_df[current_df["DOI"] == doi_in]["Formula"].unique())
+                                                                  options=current_df[current_df["DOI"] == doi_in][
+                                                                      "Formula"].unique())
                                 err = uploadStruc.is_doi_name_match(doi_in, name, select_upload_type, reaction_name)
                                 if doi_in in experiment_dois:
                                     if err is not None:
                                         st.error(err)
                                     else:
                                         with _col1:
-                                            st.dataframe(exp_df[(exp_df["Uploader"] == name) & (exp_df["DOI"] == doi_in)])
+                                            st.dataframe(
+                                                exp_df[(exp_df["Uploader"] == name) & (exp_df["DOI"] == doi_in)])
                                 if doi_in not in experiment_dois or err is None:
-
                                     with _col2:
                                         select_file_type = st.selectbox(label="Choose a file type",
                                                                         options=["CONTCAR", "CIF", "XYZ"])
                                         formula_struc_file = st.file_uploader(
                                             label="Upload your structure file (contcar, cif, xyz)",
                                             type=None)
-                                        submit_button = st.button(f"Submit substrate Data and {select_file_type} File",)
+                                        submit_button = st.button(
+                                            f"Submit substrate Data and {select_file_type} File", )
                                         if submit_button:
                                             err = uploadStruc.upload_struc_file(select_file_type, doi_in,
                                                                                 formula_struc_file, select_formula)
@@ -1724,12 +1728,12 @@ if __name__ == "__main__":
                                         _col1, _col2, _col3 = st.columns([3, 3, 4])
                                         with _col1:
                                             if not adsorbates:
-                                                select_adsorbate = st.text_input("Please enter your adsorbate_dic",)
+                                                select_adsorbate = st.text_input("Please enter your adsorbate", )
                                             else:
-                                                select_adsorbate = st.selectbox(label="Choose an adsorbate_dic",
-                                                                            options=adsorbates)
+                                                select_adsorbate = st.selectbox(label="Choose an adsorbate",
+                                                                                options=adsorbates)
                                         with _col2:
-                                            energy_ads = st.number_input(label="Input energy of adsorbate_dic", )
+                                            energy_ads = st.number_input(label="Input energy of adsorbate", )
                                             select_file_type = st.selectbox(label="Choose a file type",
                                                                             options=["CONTCAR", "CIF", "XYZ"],
                                                                             key=f"ads_file_type")
@@ -1740,7 +1744,8 @@ if __name__ == "__main__":
                                         with _col1:
                                             # submit_button = st.form_submit_button(
                                             #     f"Submit substrate with {select_adsorbate} Data and {select_file_type} file", )
-                                            submit_button = st.button(f"Submit substrate with {select_adsorbate} Data and {select_file_type} file",)
+                                            submit_button = st.button(
+                                                f"Submit substrate with {select_adsorbate} Data and {select_file_type} file", )
                                         if submit_button:
                                             # 上传文件
                                             err = uploadStruc.upload_struc_file(select_file_type, doi_in,
@@ -1771,7 +1776,8 @@ if __name__ == "__main__":
                                         incar_submit_button = st.button(label="Submit",
                                                                         key=f"{select_formula}_IK_file_upload", )
                                         if incar_submit_button and incar_file is not None:
-                                            err = uploadStruc.upload_INCAR_KPOINTS_file(doi_in, incar_file, select_formula)
+                                            err = uploadStruc.upload_INCAR_KPOINTS_file(doi_in, incar_file,
+                                                                                        select_formula)
                                             if err is None:
                                                 st.success("Uploaded successfully!")
                                             else:
@@ -1780,7 +1786,12 @@ if __name__ == "__main__":
                                 st.error("No Experimental Data Exist! Please Upload Experimental Data Above")
 
                 elif select_upload_type == "Computational":
-                    with open("./computational_data/computational_data.pkl", "rb") as f:
+                    computational_data_path = "./computational_data/computational_data.pkl"
+                    if not os.path.exists(computational_data_path):
+                        computational_data_path = file_from_gdrive(dir_dict["computational_data"],
+                                                                   "computational_data.pkl", init_drive_client(),
+                                                                   computational_data_path)
+                    with open(computational_data_path, "rb") as f:
                         total_computational_dic = pickle.load(f)
                         computational_df = total_computational_dic[reaction_name]
                     computational_dois = computational_df["DOI"].unique()
@@ -1829,19 +1840,15 @@ if __name__ == "__main__":
                                             st.error(err)
                                     with st.container(): # 吸附物数据
                                         adsorbates = adsorbate_dic.get(reaction_name, [])
-                                        with st.form(key=f"{reaction_name}_ads_file_upload"):
-                                            _col1, _col2, _col3 = st.columns([3, 3, 4])
+                                        _col1, _col2, _col3 = st.columns([3, 3, 4])
                                         with _col1:
                                             if not adsorbates:
-                                                select_adsorbate = st.text_input("Please input adsorbate_dic", key=f"{reaction_name}_ads")
+                                                select_adsorbate = st.text_input("Please input adsorbate", key=f"{reaction_name}_ads")
                                             else:
-                                                select_adsorbate = st.selectbox(label="Choose an adsorbate_dic",
+                                                select_adsorbate = st.selectbox(label="Choose an adsorbate",
                                                                                 options=adsorbates)
-                                            # submit_button = st.form_submit_button(f"Submit substrate with {select_adsorbate} Data and {select_file_type} file",)
-                                            submit_button = st.form_submit_button(f"Submit substrate with adsorbate_dic Data and file",)
-
                                         with _col2:
-                                            energy_ads = st.number_input(label="Input energy of adsorbate_dic", )
+                                            energy_ads = st.number_input(label="Input energy of adsorbate", )
                                             select_file_type = st.selectbox(label="Choose a file type",
                                                                             options=["CONTCAR", "CIF", "XYZ"],
                                                                             key=f"{select_adsorbate}_file_type")
@@ -1849,6 +1856,9 @@ if __name__ == "__main__":
                                             adsorbate_file = st.file_uploader(
                                                 label="Upload your adsorbate_dic file (contcar, cif, xyz)",
                                                 type=None)
+                                        with _col1:
+                                            submit_button = st.button(
+                                                f"Submit substrate with {select_adsorbate} Data and {select_file_type} file", )
                                         if submit_button:
                                             err = uploadStruc.upload_struc_file(select_file_type, doi_in,
                                                                                 adsorbate_file, input_formula,
@@ -1867,20 +1877,18 @@ if __name__ == "__main__":
                                                 st.success("Uploaded successfully!")
                                             else:
                                                 st.error(err)
+                                    st.divider()
                                     with st.container(): # 输入文件上传
                                         st.markdown("#### Upload INCAR OR KPOINTS File here")
                                         incar_file = st.file_uploader("Upload your INCAR/KPOINTS file", )
                                         incar_submit_button = st.button(label="Submit", key=f"{input_formula}_IK_file_upload",)
-                                        if incar_submit_button:
-                                            if incar_file is not None:
-                                                err = uploadStruc.upload_INCAR_KPOINTS_file(doi_in, incar_file, input_formula,)
-                                                if err is None:
-                                                    st.success("Uploaded successfully!")
+                                        if incar_submit_button and incar_file is not None:
+                                            err = uploadStruc.upload_INCAR_KPOINTS_file(doi_in, incar_file, input_formula,)
+                                            if err is None:
+                                                st.success("Uploaded successfully!")
 
-                                                else:
-                                                    st.error(err)
                                             else:
-                                                st.error("Upload a file first")
+                                                st.error(err)
                                 else:
                                     st.error("Please enter a Formula first")
 
