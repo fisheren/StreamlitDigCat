@@ -1902,62 +1902,69 @@ if __name__ == "__main__":
                                 else:
                                     st.error("Please enter a Formula first")
 
-                    """
                     # with st.container():
-                        st.markdown("### Upload Computational Data by ZIP")
-                        select_upload_type = st.radio(
-                            "Choose one:",
-                            ('Computational Structures(without adsorption free energies)',
-                             'Computational Structures(including adsorption free energies)')
-                        )
-                        # TODO 考虑是否添加到Google Drive
-                        if select_upload_type == "Computational Structures(including adsorption free energies)":
-                            zip_template_path = "./computational_data/template.zip"
-                        elif select_upload_type == "Computational Structures(without adsorption free energies)":
-                            zip_template_path = "./computational_data/template.zip"
-                        else:
-                            zip_template_path = None
-                        with open(zip_template_path, "rb") as zip_template_file:
-                            zip_data = zip_template_file.read()
-                        if zip_data:
-                            # 创建下载按钮
-                            st.download_button(
-                                label="Download ZIP Template",
-                                data=zip_data,
-                                file_name="template.zip",
-                                mime="application/zip"
-                            )
-                        else:
-                            st.error("ZIP file not found.")
-                        zip_file = st.file_uploader("Upload ZIP here", "zip")
-                        _col1, _col2 = st.columns(2)
-                        if zip_file is not None:
-                            file_validator = uploadStrucZipClass.FileValidator(zip_file, select_upload_type, name, reaction_name)
-                            with _col1:
-                                __col1, __col2 = st.columns(2)
-                            with _col2:
-                                submit_button = st.button("Submit")
-                            with __col1:
-                                check_toggle = st.toggle("Check and Show Your Data")
-                            if check_toggle:
-                                expect_df, ved, err = file_validator.check_all()
-                                with _col1:
-                                    st.markdown("##### Expect Data")
-                                    st.dataframe(ved)
-                                with _col2:
-                                    st.markdown("##### Got Data")
-                                    st.dataframe(pd.DataFrame(file_validator.valid_data))
-                                with st.expander("ERROR"):
-                                    for e in file_validator.error_messages:
-                                        st.write(e)
-                            if submit_button:
-                                if check_toggle and submit_button and file_validator.error_messages is None:
-                                    err = file_validator.submit_data2DB()
-                                    if err is None:
-                                        uploadStrucbyZIP.upload_files_to_google_drive(file_validator.checked_files, dir_dict)
-                                        st.success("Uploaded successfully!")
-                                else:
-                                    st.warning("Please Check your data first")"""
+                    #     st.markdown("### Upload Computational Data by ZIP")
+                    #     select_upload_type = st.radio(
+                    #         "Choose one:",
+                    #         ('Computational Structures(without adsorption free energies)',
+                    #          'Computational Structures(including adsorption free energies)')
+                    #     )
+                    #     # TODO 考虑是否添加到Google Drive
+                    #     if select_upload_type == "Computational Structures(including adsorption free energies)":
+                    #         zip_template_path = "./computational_data/template.zip"
+                    #     elif select_upload_type == "Computational Structures(without adsorption free energies)":
+                    #         zip_template_path = "./computational_data/template.zip"
+                    #     else:
+                    #         zip_template_path = None
+                    #     with open(zip_template_path, "rb") as zip_template_file:
+                    #         zip_data = zip_template_file.read()
+                    #     if zip_data:
+                    #         # 创建下载按钮
+                    #         st.download_button(
+                    #             label="Download ZIP Template",
+                    #             data=zip_data,
+                    #             file_name="template.zip",
+                    #             mime="application/zip"
+                    #         )
+                    #     else:
+                    #         st.error("ZIP file not found.")
+                    #     zip_file = st.file_uploader("Upload ZIP here", "zip")
+                    #     _col1, _col2 = st.columns(2)
+                    #     if zip_file is not None:
+                    #         file_validator = uploadStrucZipClass.FileValidator(zip_file, select_upload_type, name, reaction_name)
+                    #         with _col1:
+                    #             __col1, __col2 = st.columns(2)
+                    #         with _col2:
+                    #             submit_button = st.button("Submit")
+                    #         with __col1:
+                    #             check_toggle = st.toggle("Check and Show Your Data")
+                    #         if check_toggle:
+                    #             expect_df, ved, err = file_validator.check_all()
+                    #             with _col1:
+                    #                 st.markdown("##### Expect Data")
+                    #                 st.dataframe(ved)
+                    #             with _col2:
+                    #                 st.markdown("##### Got Data")
+                    #                 st.dataframe(pd.DataFrame(file_validator.valid_data))
+                    #             with st.expander("ERROR"):
+                    #                 for e in file_validator.error_messages:
+                    #                     st.write(e)
+                    #         if submit_button:
+                    #             if check_toggle and submit_button and file_validator.error_messages is None:
+                    #                 err = file_validator.submit_data2DB()
+                    #                 if err is None:
+                    #                     uploadStrucbyZIP.upload_files_to_google_drive(file_validator.checked_files, dir_dict)
+                    #                     st.success("Uploaded successfully!")
+                    #             else:
+                    #                 st.warning("Please Check your data first")
+
+
+
+
+
+
+
+
 
                             # if select_upload_type == "Computational Structures(including adsorption free energies)":
                             #     with _col1:
