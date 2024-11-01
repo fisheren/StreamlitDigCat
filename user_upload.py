@@ -1902,7 +1902,8 @@ if __name__ == "__main__":
                                 else:
                                     st.error("Please enter a Formula first")
 
-                    with st.container():
+                    """
+                    # with st.container():
                         st.markdown("### Upload Computational Data by ZIP")
                         select_upload_type = st.radio(
                             "Choose one:",
@@ -1956,8 +1957,7 @@ if __name__ == "__main__":
                                         uploadStrucbyZIP.upload_files_to_google_drive(file_validator.checked_files, dir_dict)
                                         st.success("Uploaded successfully!")
                                 else:
-                                    st.warning("Please Check your data first")
-
+                                    st.warning("Please Check your data first")"""
 
                             # if select_upload_type == "Computational Structures(including adsorption free energies)":
                             #     with _col1:
