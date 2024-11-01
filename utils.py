@@ -46,6 +46,10 @@ def get_total_excel(thermo_flag, photo_flag):
         return df_total
 
 
+def save_files(uploaded_file, save_path):
+    with open(save_path, "wb") as file:
+        file.write(uploaded_file.getbuffer())
+
 """
 以下为检查上传的文件类型的通用函数
 """
