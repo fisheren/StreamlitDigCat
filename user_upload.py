@@ -5,8 +5,10 @@ import streamlit as st
 import re
 
 import uploadStruc
+import uploadStrucZipClass
 import uploadStrucbyZIP
 import utils
+
 from quickstart_googledrive import upload_or_replace_file, st_upload_file_to_drive, file_from_gdrive, dir_dict
 from quickstart_googledrive import init_drive_client
 
@@ -1056,7 +1058,6 @@ def extract_and_modify_data(reaction_name, name, username, institute, thermo_fla
         return False
 
 
-
 def write_total_pickle_upload(df, thermo_flag, photo_flag):
     if not thermo_flag and not photo_flag:
         pickle_path = os.path.join(".", "total_excel", "total.pkl")
@@ -1161,6 +1162,7 @@ if __name__ == "__main__":
 
     yaml_file_path = os.path.join(cwd, "user.yaml")
     if not os.path.exists(yaml_file_path):
+        raise "Can not found file user.yaml"
         file_from_gdrive(dir_dict["user"], "user.yaml", init_drive_client(), yaml_file_path)
     login_result = login(yaml_file=os.path.join(cwd, "user.yaml"))
     # login_result = login("./user.yaml")
@@ -1301,10 +1303,13 @@ if __name__ == "__main__":
                                 else:
                                     uploaded_file.name = f"{st.session_state.doi}_si.pdf"
                                 if thermo_flag:
+                                    utils.save_files(uploaded_file, "./pdfs_thermocatalysis")
                                     st_upload_file_to_drive(uploaded_file, dir_dict["pdfs_thermocatalysis"], drive_client)
                                 elif photo_flag:
+                                    utils.save_files(uploaded_file, "./pdfs_photocatalysis")
                                     st_upload_file_to_drive(uploaded_file, dir_dict["pdfs_photocatalysis"], drive_client)
                                 else:
+                                    utils.save_files(uploaded_file, "./pdfs")
                                     st_upload_file_to_drive(uploaded_file, dir_dict["pdfs"], drive_client)
                                 st.success('File has been uploaded!')
                             elif si_button and uploaded_file is None:
@@ -1460,8 +1465,8 @@ if __name__ == "__main__":
                             if key != "Type":
                                 new_df[key] = results
 
-                        # st.markdown("##### Please enter the username：")
-                        # username = st.text_input('Please always use the same username to accumulate credits.', "e.g. xuan wang", label_visibility="visible")
+                        # st.markdown("##### Please enter the uploader：")
+                        # uploader = st.text_input('Please always use the same uploader to accumulate credits.', "e.g. xuan wang", label_visibility="visible")
                         new_df["Name"] = username
                         new_df["Institute"] = institute
                         new_df["Uploading data"] = pd.Timestamp(datetime.now())
@@ -1631,12 +1636,15 @@ if __name__ == "__main__":
                                             else:
                                                 uploaded_doi.name = f"{selected_doi}.pdf"
                                             if thermo_flag:
+                                                utils.save_files(uploaded_doi, "./pdfs_thermocatalysis")
                                                 st_upload_file_to_drive(uploaded_doi, dir_dict["pdfs_thermocatalysis"],
                                                                         drive_client)
                                             elif photo_flag:
+                                                utils.save_files(uploaded_doi, "./pdfs_photocatalysis")
                                                 st_upload_file_to_drive(uploaded_doi, dir_dict["pdfs_photocatalysis"],
                                                                         drive_client)
                                             else:
+                                                utils.save_files(uploaded_doi, "./pdfs")
                                                 st_upload_file_to_drive(uploaded_doi, dir_dict["pdfs"], drive_client)
                                             st.success('File has been uploaded!')
                                             # st.success("File renamed and uploaded successfully!")
@@ -1669,6 +1677,7 @@ if __name__ == "__main__":
                         experimental_data_path = file_from_gdrive(dir_dict["computational_data"],
                                                                   "experimental_data.pkl", init_drive_client(),
                                                                   experimental_data_path)
+                        raise f"File not found {experimental_data_path}"
                     with open(experimental_data_path, "rb") as f:
                         total_exp_dic = pickle.load(f)
                         exp_df = total_exp_dic[reaction_name]
@@ -1791,6 +1800,7 @@ if __name__ == "__main__":
                         computational_data_path = file_from_gdrive(dir_dict["computational_data"],
                                                                    "computational_data.pkl", init_drive_client(),
                                                                    computational_data_path)
+                        raise f"File not found {computational_data_path}"
                     with open(computational_data_path, "rb") as f:
                         total_computational_dic = pickle.load(f)
                         computational_df = total_computational_dic[reaction_name]
@@ -1892,40 +1902,68 @@ if __name__ == "__main__":
                                 else:
                                     st.error("Please enter a Formula first")
 
-                    # with st.container():
-                    #     st.markdown("### Upload Computational Data by ZIP")
-                    #     select_upload_type = st.radio(
-                    #         "Choose one:",
-                    #         ('Computational Structures(without adsorption free energies)',
-                    #          'Computational Structures(including adsorption free energies)')
-                    #     )
-                    #     # TODO 考虑是否添加到Google Drive
-                    #     if select_upload_type == "Computational Structures(including adsorption free energies)":
-                    #         zip_template_path = "./computational_data/template.zip"
-                    #     elif select_upload_type == "Computational Structures(without adsorption free energies)":
-                    #         zip_template_path = "./computational_data/template.zip"
-                    #     else:
-                    #         zip_template_path = None
-                    #     with open(zip_template_path, "rb") as zip_template_file:
-                    #         zip_data = zip_template_file.read()
-                    #     if zip_data:
-                    #         # 创建下载按钮
-                    #         st.download_button(
-                    #             label="Download ZIP Template",
-                    #             data=zip_data,
-                    #             file_name="template.zip",
-                    #             mime="application/zip"
-                    #         )
-                    #     else:
-                    #         st.error("ZIP file not found.")
-                    #     zip_file = st.file_uploader("Upload ZIP here", "zip")
-                    #     _col1, _col2 = st.columns(2)
-                    #     if zip_file is not None:
-                    #         if select_upload_type == "Computational Structures(including adsorption free energies)":
-                    #             with _col1:
-                    #                 __col1, __col2 = st.columns(2)
-                    #             with __col1:
-                    #                 check_toggle = st.toggle("Check and Show Your Data")
+                    with st.container():
+                        st.markdown("### Upload Computational Data by ZIP")
+                        select_upload_type = st.radio(
+                            "Choose one:",
+                            ('Computational Structures(without adsorption free energies)',
+                             'Computational Structures(including adsorption free energies)')
+                        )
+                        # TODO 考虑是否添加到Google Drive
+                        if select_upload_type == "Computational Structures(including adsorption free energies)":
+                            zip_template_path = "./computational_data/template.zip"
+                        elif select_upload_type == "Computational Structures(without adsorption free energies)":
+                            zip_template_path = "./computational_data/template.zip"
+                        else:
+                            zip_template_path = None
+                        with open(zip_template_path, "rb") as zip_template_file:
+                            zip_data = zip_template_file.read()
+                        if zip_data:
+                            # 创建下载按钮
+                            st.download_button(
+                                label="Download ZIP Template",
+                                data=zip_data,
+                                file_name="template.zip",
+                                mime="application/zip"
+                            )
+                        else:
+                            st.error("ZIP file not found.")
+                        zip_file = st.file_uploader("Upload ZIP here", "zip")
+                        _col1, _col2 = st.columns(2)
+                        if zip_file is not None:
+                            file_validator = uploadStrucZipClass.FileValidator(zip_file, select_upload_type, name, reaction_name)
+                            with _col1:
+                                __col1, __col2 = st.columns(2)
+                            with _col2:
+                                submit_button = st.button("Submit")
+                            with __col1:
+                                check_toggle = st.toggle("Check and Show Your Data")
+                            if check_toggle:
+                                expect_df, ved, err = file_validator.check_all()
+                                with _col1:
+                                    st.markdown("##### Expect Data")
+                                    st.dataframe(ved)
+                                with _col2:
+                                    st.markdown("##### Got Data")
+                                    st.dataframe(pd.DataFrame(file_validator.valid_data))
+                                with st.expander("ERROR"):
+                                    for e in file_validator.error_messages:
+                                        st.write(e)
+                            if submit_button:
+                                if check_toggle and submit_button and file_validator.error_messages is None:
+                                    err = file_validator.submit_data2DB()
+                                    if err is None:
+                                        uploadStrucbyZIP.upload_files_to_google_drive(file_validator.checked_files, dir_dict)
+                                        st.success("Uploaded successfully!")
+                                else:
+                                    st.warning("Please Check your data first")
+
+
+                            # if select_upload_type == "Computational Structures(including adsorption free energies)":
+                            #     with _col1:
+                            #         __col1, __col2 = st.columns(2)
+                            #     with __col1:
+                            #         check_toggle = st.toggle("Check and Show Your Data")
                     #             if check_toggle:
                     #                 # 调用后端函数处理
                     #                 err, invalid_doi, unmatched_doi, valid_entries, checked_files, infos = uploadStrucbyZIP.handle_uploaded_file(

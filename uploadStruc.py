@@ -2,9 +2,12 @@ import os
 import pandas as pd
 import pickle
 
+import authentic_file.config
 import quickstart_googledrive
+import upload2DB
+import utils
 from utils import is_INCAR, is_KPOINTS, is_CONTCAR, check_functions
-from quickstart_googledrive import upload_or_replace_file_by_file, dir_dict, download_folder_contents, init_drive_client
+from quickstart_googledrive import upload_or_replace_file_by_file, dir_dict, init_drive_client
 
 
 # 上传数据函数，处理实验数据和纯计算数据
@@ -51,6 +54,15 @@ def upload_struc_data(df, formula, doi, uploader_name, adsorbate_type=None, adso
 
 
 def upload_struc_file(file_type, doi, file, formula, adsorbate_name=None):
+    """
+    上传结构文件
+    :param file_type: 结构文件类型【CONTCAR，CIF，XYZ】
+    :param doi: doi
+    :param file: 通过st.file_uploade上传的文件
+    :param formula:
+    :param adsorbate_name:
+    :return: None or err msg
+    """
     # 检查文件是否提供
     if file is None:
         return "No file provided."
@@ -87,6 +99,7 @@ def upload_struc_file(file_type, doi, file, formula, adsorbate_name=None):
 
     # 将文件写入目标文件夹
     file_path = os.path.join(_fp, file_name)
+    utils.save_files(file, file_path)
 
     service = init_drive_client()
     file_type_folder_id = dir_dict[file_type]
@@ -110,6 +123,9 @@ def upload_INCAR_KPOINTS_file(doi, file, formula, drive_service=quickstart_googl
 
     # 生成文件名
     file_name = f"{file_type}_{formula}"
+    file_path = f"./computational_data/{file_type}/{doi}/" + file_name
+    utils.save_files(file, file_path)
+
     file_type_folder_id = dir_dict[file_type]
     doi_folder_id = quickstart_googledrive.create_or_get_subfolder_id(drive_service, doi, file_type_folder_id)
     # 调用 upload_or_replace_file 上传或替换文件
@@ -124,22 +140,26 @@ def upload_INCAR_KPOINTS_file(doi, file, formula, drive_service=quickstart_googl
 def is_doi_name_match(doi_in, current_name, select_type, sheet_name):
     # 设置不同数据类型的 Excel 文件路径
     if select_type == "Experimental":
-        excel_path = "./computational_data/experimental_data.pkl"
-        # if os.path.exists(excel_path):
-        #     df = pd.read_excel(excel_path)
-        if not os.path.exists(excel_path):
+        pkl_path = "./computational_data/experimental_data.pkl"
+        # if os.path.exists(pkl_path):
+        #     df = pd.read_excel(pkl_path)
+        if not os.path.exists(pkl_path):
             quickstart_googledrive.file_from_gdrive(dir_dict["computational_data"], "experimental_data.pkl",
-                                                    init_drive_client(), excel_path)
-        total_dic = pickle.load(open(excel_path, "rb"))
+                                                    init_drive_client(), pkl_path)
+            raise FileNotFoundError
+        total_dic = pickle.load(open(pkl_path, "rb"))
         df = total_dic[sheet_name]
-    elif (select_type == "Computational" or
-          select_type == "Computational Structures(including adsorption free energies)"):
-        excel_path = "./computational_data/computational_data.pkl"
-        if not os.path.exists(excel_path):
+    elif select_type == "Computational":
+        pkl_path = "./computational_data/computational_data.pkl"
+        if not os.path.exists(pkl_path):
             quickstart_googledrive.file_from_gdrive(dir_dict["computational_data"], "computational_data.pkl",
-                                                    init_drive_client(), excel_path)
-        total_dic = pickle.load(open(excel_path, "rb"))
+                                                    init_drive_client(), pkl_path)
+            raise FileNotFoundError
+        total_dic = pickle.load(open(pkl_path, "rb"))
         df = total_dic[sheet_name]
+    elif (select_type == "Computational Structures(including adsorption free energies)"
+          or select_type == "Computational Structures(without adsorption free energies)"):
+        df = upload2DB.get_doi_uploader(authentic_file.config.DB_URL, sheet_name)
     else:
         raise "Option out of range."
 

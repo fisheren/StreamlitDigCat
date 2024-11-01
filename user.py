@@ -3,7 +3,7 @@ import hashlib
 import yaml
 from yaml.loader import SafeLoader
 import streamlit as st
-from quickstart_googledrive import init_drive_client, upload_or_replace_file
+from quickstart_googledrive import init_drive_client, upload_or_replace_file, dir_dict
 import os
 
 import random
@@ -54,8 +54,8 @@ def get_hashed_pw(pw_string):
     return hashed_password
 
 
-def update_passwd(authenticator, config, yaml_file = 'user.yaml'):
-    #st.sidebar.write(yaml_file)
+def update_passwd(authenticator, config, yaml_file='user.yaml'):
+    # st.sidebar.write(yaml_file)
     if not 'Reset Password' in st.session_state:
         st.session_state['Reset Password'] = None
     if st.button('Reset Password'):
@@ -64,37 +64,40 @@ def update_passwd(authenticator, config, yaml_file = 'user.yaml'):
         try:
             if authenticator.reset_password(st.session_state["username"]):
                 with open(yaml_file, 'w') as file:
-                    yaml.dump(config, file, default_flow_style=False)                
-                upload_or_replace_file("user.yaml", os.path.join(os.getcwd(), "user.yaml"), 'application/x-yaml', dir_dict["user"], init_drive_client())
+                    yaml.dump(config, file, default_flow_style=False)
+                upload_or_replace_file("user.yaml", os.path.join(os.getcwd(), "user.yaml"), 'application/x-yaml',
+                                       dir_dict["user"], init_drive_client())
                 st.success('Password modified successfully')
-                st.session_state['Reset Password'] = False 
+                st.session_state['Reset Password'] = False
         except Exception as e:
             st.error(e)
-        
-        
-def registration(authenticator, config, yaml_file = 'user.yaml', preauthori = False):
+
+
+def registration(authenticator, config, yaml_file='user.yaml', preauthori=False):
     try:
         fields = {
-        'Form name': 'Register user',
-        'Email': 'Email',
-        'Username': 'Username (For logging in)',
-        'Password': 'Password',
-        'Repeat password': 'Repeat password',
-        'Institute': 'Institute',  # 添加新字段
-        'Register': 'Register'
+            'Form name': 'Register user',
+            'Email': 'Email',
+            'Username': 'Username (For logging in)',
+            'Password': 'Password',
+            'Repeat password': 'Repeat password',
+            'Institute': 'Institute',  # 添加新字段
+            'Register': 'Register'
         }
-        email_of_registered_user, username_of_registered_user, name_of_registered_user, institute_of_registered_user = authenticator.register_user(pre_authorization=preauthori, fields=fields)
-        
+        email_of_registered_user, username_of_registered_user, name_of_registered_user, institute_of_registered_user = authenticator.register_user(
+            pre_authorization=preauthori, fields=fields)
+
         if email_of_registered_user:
             with open(yaml_file, 'w') as file:
                 yaml.dump(config, file, default_flow_style=False)
-            upload_or_replace_file("user.yaml", os.path.join(os.getcwd(), "user.yaml"), 'application/x-yaml', dir_dict["user"], init_drive_client())
+            upload_or_replace_file("user.yaml", os.path.join(os.getcwd(), "user.yaml"), 'application/x-yaml',
+                                   dir_dict["user"], init_drive_client())
             st.success('User registered successfully')
     except Exception as e:
         st.error(e)
 
 
-def forget_passwd(authenticator, config, yaml_file = 'user.yaml'):
+def forget_passwd(authenticator, config, yaml_file='user.yaml'):
     if "verification_code" not in st.session_state:
         st.session_state["verification_code"] = None
     if not 'Forgot Password?' in st.session_state:
@@ -102,14 +105,14 @@ def forget_passwd(authenticator, config, yaml_file = 'user.yaml'):
     if st.button('Forgot Password?'):
         st.session_state['Forgot Password?'] = True
     if not 'email_check' in st.session_state:
-        st.session_state['email_check'] = None    
-        
+        st.session_state['email_check'] = None
+
     if st.session_state['Forgot Password?']:
         st.write("Please write your email address:")
         code_email = st.text_input("email address here")
         if st.button("Send verification code"):
             st.session_state.verification_code = generate_verification_code()
-            send_email(code_email, st.session_state.verification_code) 
+            send_email(code_email, st.session_state.verification_code)
         input_verification_code = st.text_input("Input the verification code")
         if st.button("Verify"):
             if verify_code(st.session_state.verification_code, input_verification_code):
@@ -123,8 +126,9 @@ def forget_passwd(authenticator, config, yaml_file = 'user.yaml'):
                 if username_of_forgotten_password and email_of_forgotten_password == code_email:
                     with open(yaml_file, 'w') as file:
                         yaml.dump(config, file, default_flow_style=False)
-                    upload_or_replace_file("user.yaml", os.path.join(os.getcwd(), "user.yaml"), 'application/x-yaml', dir_dict["user"], init_drive_client())
-                    st.markdown(f'New password is: **{new_random_password}**') 
+                    upload_or_replace_file("user.yaml", os.path.join(os.getcwd(), "user.yaml"), 'application/x-yaml',
+                                           dir_dict["user"], init_drive_client())
+                    st.markdown(f'New password is: **{new_random_password}**')
                     st.session_state['Forgot Password?'] = False
                     st.session_state['email_check'] = False
                 elif username_of_forgotten_password and email_of_forgotten_password != code_email:
@@ -141,31 +145,31 @@ def forget_passwd(authenticator, config, yaml_file = 'user.yaml'):
                 st.session_state['email_check'] = False
 
 
-def login(yaml_file = 'user.yaml', preauthori = False):
+def login(yaml_file='user.yaml', preauthori=False):
     with open(yaml_file) as file:
-        config = yaml.load(file, Loader=SafeLoader) 
-    
+        config = yaml.load(file, Loader=SafeLoader)
+
     authenticator = stauth.Authenticate(
         config['credentials'],
         config['cookie']['name'],
         config['cookie']['key'],
         config['cookie']['expiry_days'],
         config['preauthorized']
-        )
+    )
     with st.sidebar:
-        name, authentication_status, username = authenticator.login(fields={'Form name':'Login', 'Username':'Username', 'Password':'Password', 'Login':'Login'})
+        name, authentication_status, username = authenticator.login(
+            fields={'Form name': 'Login', 'Username': 'Username', 'Password': 'Password', 'Login': 'Login'})
         if authentication_status:
             st.markdown('Welcome **%s %s**' % (config['credentials']['usernames'][username]['institute'], name))
-            authenticator.logout(button_name = "Logout")
-            update_passwd(authenticator, config, yaml_file = yaml_file)
+            authenticator.logout(button_name="Logout")
+            update_passwd(authenticator, config, yaml_file=yaml_file)
             return authentication_status, name, username, config['credentials']['usernames'][username]['institute']
         elif authentication_status == False:
             st.sidebar.error('Username/password is incorrect')
             return None
         elif authentication_status == None:
-            forget_passwd(authenticator, config, yaml_file = yaml_file)
-            st.markdown("🌊 **Need a DigCat account?** Please register below.")            
-            registration(authenticator, config, yaml_file = yaml_file, preauthori= preauthori)
+            forget_passwd(authenticator, config, yaml_file=yaml_file)
+            st.markdown("🌊 **Need a DigCat account?** Please register below.")
+            registration(authenticator, config, yaml_file=yaml_file, preauthori=preauthori)
             return None
     return None
-
