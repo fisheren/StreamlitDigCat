@@ -1,14 +1,11 @@
-from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
-from googleapiclient.discovery import build
-import io
+# from google_auth_oauthlib.flow import InstalledAppFlow
+# from googleapiclient.discovery import build
+# import io
 import os
-import pickle
-from googleapiclient.http import MediaIoBaseUpload, MediaIoBaseDownload
-from googleapiclient.http import MediaFileUpload
-from google.auth.transport.requests import Request
-
-os.environ['HTTPS_PROXY'] = 'http://127.0.0.1:10792'
+# import pickle
+# from googleapiclient.http import MediaIoBaseUpload, MediaIoBaseDownload
+# from googleapiclient.http import MediaFileUpload
+# from google.auth.transport.requests import Request
 
 # 需要增加CONTCAR，CIF等文件夹对应的代码
 # 文件代码对应字典
@@ -56,6 +53,7 @@ def delete_files_in_folder_googledrive(folder_id, service):
  
  
 def init_drive_client():
+    return
     # creds = Credentials.from_service_account_file('./streamlitren-e6009aae6aa6.json')
     creds = None
     # The file token.json stores the user's access and refresh tokens, and is
@@ -86,6 +84,7 @@ def init_drive_client():
 
 # Function to upload files to Google Drive
 def st_upload_file_to_drive(file, folder_id, client):
+    return
     # Search for existing file with the same name in the specified folder
     query = f"name='{file.name}' and '{folder_id}' in parents and mimeType='application/pdf'"
     existing_files = client.files().list(q=query, fields="files(id)").execute().get('files', [])
@@ -109,11 +108,11 @@ def list_files_in_drive(client):
     return items
 
 
-def upload_file_to_drive(filename, filepath, mimetype, folder_id, drive_service):
-    file_metadata = {'name': filename, 'parents': [folder_id]}
-    media = MediaFileUpload(filepath, mimetype=mimetype)
-    file = drive_service.files().create(body=file_metadata, media_body=media, fields='id').execute()
-    return file.get('id')
+# def upload_file_to_drive(filename, filepath, mimetype, folder_id, drive_service):
+#     file_metadata = {'name': filename, 'parents': [folder_id]}
+#     media = MediaFileUpload(filepath, mimetype=mimetype)
+#     file = drive_service.files().create(body=file_metadata, media_body=media, fields='id').execute()
+#     return file.get('id')
     
 
 def list_files_in_folder(folder_id, drive_service=init_drive_client()):
@@ -125,6 +124,7 @@ def list_files_in_folder(folder_id, drive_service=init_drive_client()):
 
 # 上传与更新
 def upload_or_replace_file(filename, filepath, mimetype, folder_id, drive_service=init_drive_client()):
+    return
     # Search for the file within the specified folder
     query = f"name='{filename}' and '{folder_id}' in parents and trashed=false"
     response = drive_service.files().list(q=query, 
@@ -146,30 +146,9 @@ def upload_or_replace_file(filename, filepath, mimetype, folder_id, drive_servic
         return file['id']
 
 
-def upload_to_gdrive(service, file_path, folder_id):
-    """Upload a file to a specific folder in Google Drive."""
-    file_name = os.path.basename(file_path)
-    # 创建一个文件的 metadata
-    file_metadata = {
-        'name': file_name,
-        'parents': [folder_id]  # 指定父文件夹 ID
-    }
-
-    # 使用 MediaFileUpload 处理要上传的文件
-    media = MediaFileUpload(file_path, resumable=True)
-
-    # 执行上传操作
-    file = service.files().create(
-        body=file_metadata,
-        media_body=media,
-        fields='id'
-    ).execute()
-
-    print(f"文件 {file_name} 上传成功，文件 ID: {file.get('id')}")
-
-
 def upload_or_replace_file_by_file(filename, file, mimetype, folder_id, drive_service=init_drive_client()):
     # Search for the file within the specified folder
+    return
     query = f"name='{filename}' and '{folder_id}' in parents and trashed=false"
     response = drive_service.files().list(q=query,
                                           spaces='drive',
@@ -192,6 +171,7 @@ def upload_or_replace_file_by_file(filename, file, mimetype, folder_id, drive_se
 
 def create_or_get_subfolder_id(service, subfolder_name, parent_folder_id):
     """在 Google Drive 中创建或获取子文件夹的 folder_id."""
+    return
     query = f"'{parent_folder_id}' in parents and name='{subfolder_name}' and mimeType='application/vnd.google-apps.folder' and trashed=false"
     results = service.files().list(q=query, spaces='drive', fields='files(id, name)').execute()
     items = results.get('files', [])
@@ -210,9 +190,9 @@ def create_or_get_subfolder_id(service, subfolder_name, parent_folder_id):
         return folder.get('id')
 
 
-
 # 下载文件
 def file_from_gdrive(folder_id, file_name, service, local_path):
+    return
     query = f"'{folder_id}' in parents and name='{file_name}'"
     response = service.files().list(q=query, spaces='drive',
                                     fields='nextPageToken, files(id, name)', pageToken=None).execute()
@@ -227,41 +207,42 @@ def file_from_gdrive(folder_id, file_name, service, local_path):
         return local_path
 
 
-def download_file(file_id, service):
-    
-    request = service.files().get_media(fileId=file_id)
-    
-    fh = io.BytesIO()
-    downloader = MediaIoBaseDownload(fh, request, chunksize=204800)
-    done = False
-    while done is False:
-        status, done = downloader.next_chunk()
-    fh.seek(0)
-    return fh.read()
+# def download_file(file_id, service):
+#
+#     request = service.files().get_media(fileId=file_id)
+#
+#     fh = io.BytesIO()
+#     downloader = MediaIoBaseDownload(fh, request, chunksize=204800)
+#     done = False
+#     while done is False:
+#         status, done = downloader.next_chunk()
+#     fh.seek(0)
+#     return fh.read()
 
 
-def download_folder_contents(folder_id, local_folder_path, drive_service = init_drive_client()):
-    # Get list of all files in the folder
-    query = f"'{folder_id}' in parents and trashed=false"
-    response = drive_service.files().list(q=query, fields="files(id, name)").execute()
-    print(response)
-    files = response.get('files', [])
-
-    # Ensure the local folder exists
-    if not os.path.exists(local_folder_path):
-        os.makedirs(local_folder_path)
-
-    # Download each file
-    for file in files:
-        file_id = file['id']
-        file_name = file['name']
-        request = drive_service.files().get_media(fileId=file_id)
-        file_path = os.path.join(local_folder_path, file_name)
-        fh = io.FileIO(file_path, 'wb')
-        downloader = MediaIoBaseDownload(fh, request)
-        done = False
-        while not done:
-            status, done = downloader.next_chunk()
+# def download_folder_contents(folder_id, local_folder_path, drive_service = init_drive_client()):
+#     pass
+#     # Get list of all files in the folder
+#     query = f"'{folder_id}' in parents and trashed=false"
+#     response = drive_service.files().list(q=query, fields="files(id, name)").execute()
+#     print(response)
+#     files = response.get('files', [])
+#
+#     # Ensure the local folder exists
+#     if not os.path.exists(local_folder_path):
+#         os.makedirs(local_folder_path)
+#
+#     # Download each file
+#     for file in files:
+#         file_id = file['id']
+#         file_name = file['name']
+#         request = drive_service.files().get_media(fileId=file_id)
+#         file_path = os.path.join(local_folder_path, file_name)
+#         fh = io.FileIO(file_path, 'wb')
+#         downloader = MediaIoBaseDownload(fh, request)
+#         done = False
+#         while not done:
+#             status, done = downloader.next_chunk()
         
 
 if __name__ == "__main__":
