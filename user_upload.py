@@ -6,7 +6,6 @@ import re
 
 import uploadStruc
 import uploadStrucZipClass
-import uploadStrucbyZIP
 import utils
 
 from quickstart_googledrive import upload_or_replace_file, st_upload_file_to_drive, file_from_gdrive, dir_dict
@@ -1696,7 +1695,7 @@ if __name__ == "__main__":
                                     select_formula = st.selectbox(label="Choose a Formula",
                                                                   options=current_df[current_df["DOI"] == doi_in][
                                                                       "Formula"].unique())
-                                err = uploadStruc.is_doi_name_match(doi_in, name, select_upload_type, reaction_name)
+                                err = utils.is_doi_name_match(doi_in, name, select_upload_type, reaction_name)
                                 if doi_in in experiment_dois:
                                     if err is not None:
                                         st.error(err)
@@ -1816,7 +1815,7 @@ if __name__ == "__main__":
                                 _col1, _col2 = st.columns(2)
                             with _col1:
                                 input_formula = st.text_input(label="Input a Formula", ).strip()
-                            err = uploadStruc.is_doi_name_match(doi_in, name, select_upload_type, reaction_name)
+                            err = utils.is_doi_name_match(doi_in, name, select_upload_type, reaction_name)
                             if doi_in in computational_dois:
                                 if err is not None:
                                     st.error(err)
