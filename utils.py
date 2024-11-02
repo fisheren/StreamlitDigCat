@@ -2,6 +2,9 @@ import pickle
 import re
 import os
 
+import quickstart_googledrive
+from upload2DB import DatabaseUploader
+from authentic_file.config import DB_URL
 
 # 以下为使用GoogleDrive 进行读取文件的函数
 # def get_total_excel(thermo_flag, photo_flag):
@@ -304,6 +307,46 @@ def is_filename_valid(filename, file_type):
 
     # 如果文件类型不符合任何已知类型，则返回 False
     return False
+
+
+def is_doi_name_match(doi_in, current_name, select_type, sheet_name):
+    # 设置不同数据类型的 Excel 文件路径
+    if select_type == "Experimental":
+        pkl_path = "./computational_data/experimental_data.pkl"
+        # if os.path.exists(pkl_path):
+        #     df = pd.read_excel(pkl_path)
+        if not os.path.exists(pkl_path):
+            quickstart_googledrive.file_from_gdrive(quickstart_googledrive.dir_dict["computational_data"], "experimental_data.pkl",
+                                                    quickstart_googledrive.init_drive_client(), pkl_path)
+            raise FileNotFoundError
+        total_dic = pickle.load(open(pkl_path, "rb"))
+        df = total_dic[sheet_name]
+    elif select_type == "Computational":
+        pkl_path = "./computational_data/computational_data.pkl"
+        if not os.path.exists(pkl_path):
+            quickstart_googledrive.file_from_gdrive(quickstart_googledrive.dir_dict["computational_data"], "computational_data.pkl",
+                                                    quickstart_googledrive.init_drive_client(), pkl_path)
+            raise FileNotFoundError
+        total_dic = pickle.load(open(pkl_path, "rb"))
+        df = total_dic[sheet_name]
+    elif isinstance(select_type, bool) :
+        db_conn = DatabaseUploader(DB_URL)
+        df = db_conn.get_doi_uploader(sheet_name)
+    else:
+        raise "Option out of range."
+
+    # 检查是否存在指定 DOI
+    if doi_in not in df["DOI"].values:
+        return None
+
+    # 获取对应 DOI 的 Uploader
+    registered_name = df.loc[df["DOI"] == doi_in, "Uploader"].values[0]
+
+    # 判断当前 name 是否匹配
+    if registered_name == current_name:
+        return None  # 匹配成功
+    else:
+        return f"Error: DOI {doi_in} was uploaded by others, not {current_name}."
 
 
 # 文件夹对应的检查函数映射
