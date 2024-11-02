@@ -137,41 +137,4 @@ def upload_INCAR_KPOINTS_file(doi, file, formula, drive_service=quickstart_googl
         return None  # 上传成功，返回 None
 
 
-def is_doi_name_match(doi_in, current_name, select_type, sheet_name):
-    # 设置不同数据类型的 Excel 文件路径
-    if select_type == "Experimental":
-        pkl_path = "./computational_data/experimental_data.pkl"
-        # if os.path.exists(pkl_path):
-        #     df = pd.read_excel(pkl_path)
-        if not os.path.exists(pkl_path):
-            quickstart_googledrive.file_from_gdrive(dir_dict["computational_data"], "experimental_data.pkl",
-                                                    init_drive_client(), pkl_path)
-            raise FileNotFoundError
-        total_dic = pickle.load(open(pkl_path, "rb"))
-        df = total_dic[sheet_name]
-    elif select_type == "Computational":
-        pkl_path = "./computational_data/computational_data.pkl"
-        if not os.path.exists(pkl_path):
-            quickstart_googledrive.file_from_gdrive(dir_dict["computational_data"], "computational_data.pkl",
-                                                    init_drive_client(), pkl_path)
-            raise FileNotFoundError
-        total_dic = pickle.load(open(pkl_path, "rb"))
-        df = total_dic[sheet_name]
-    elif (select_type == "Computational Structures(including adsorption free energies)"
-          or select_type == "Computational Structures(without adsorption free energies)"):
-        df = upload2DB.get_doi_uploader(authentic_file.config.DB_URL, sheet_name)
-    else:
-        raise "Option out of range."
 
-    # 检查是否存在指定 DOI
-    if doi_in not in df["DOI"].values:
-        return None
-
-    # 获取对应 DOI 的 Uploader
-    registered_name = df.loc[df["DOI"] == doi_in, "Uploader"].values[0]
-
-    # 判断当前 name 是否匹配
-    if registered_name == current_name:
-        return None  # 匹配成功
-    else:
-        return f"Error: DOI {doi_in} was uploaded by others, not {current_name}."
