@@ -74,11 +74,12 @@ class FileValidator:
             # 如果只有一个文件夹，进入该文件夹
             target_folder = extracted_files
             target_files = os.listdir(target_folder)
+            print(target_files)
         else:
             self.error_messages.append("Error: More than one file was extracted for this upload.")
             return None
 
-        if expected_excel not in target_files:
+        if expected_excel in target_files:
             self.has_free_energy = True
 
         # 返回解压目录路径
